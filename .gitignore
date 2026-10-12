@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+.next/
+.expo/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+*.env
+*.env.*
+!*.env.example
+!.env.example
+
+# Data files (keep README)
+data/*.csv
+data/*.xlsx
+data/*.json
+!data/README.md
+
+# Model artifacts
+services/ml-service/models/
+artifacts/*.joblib
+artifacts/*.pkl
+artifacts/*.json
+!artifacts/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+
+# Temporary
+tmp/
+temp/
