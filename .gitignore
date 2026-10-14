@@ -21,7 +21,6 @@ yarn-error.log*
 # Build outputs
 dist/
 .next/
-.expo/
 *.tsbuildinfo
 
 # Environment
@@ -36,10 +35,11 @@ dist/
 data/*.csv
 data/*.xlsx
 data/*.json
+data/uploads/
 !data/README.md
 
 # Model artifacts
-services/ml-service/models/
+backend/ml-service/models/
 artifacts/*.joblib
 artifacts/*.pkl
 artifacts/*.json

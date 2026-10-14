@@ -4,7 +4,6 @@
 - Node.js 18+
 - Python 3.12+
 - Neon PostgreSQL database
-- (Optional) Android SDK for mobile builds
 
 ## Environment Setup
 
@@ -24,16 +23,15 @@ cp .env.example .env
 
 ### 3. Backend API
 ```bash
-cd services/api
-cp ../.env .env  # or create separate .env
+cd backend/api
 npm install
 npm run seed    # Creates demo users
-npm run start:dev
+npm run start:dev   # or, from the repo root: scripts\start-backend.cmd (API + ML together)
 ```
 
 ### 4. ML Service
 ```bash
-cd services/ml-service
+cd backend/ml-service
 python -m venv .venv
 .venv/Scripts/activate  # Windows
 # source .venv/bin/activate  # Linux/Mac
@@ -41,19 +39,12 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 5. Web Dashboard
+### 5. Web App
 ```bash
-cd apps/web
+cd frontend
 cp .env.example .env
 npm install
 npm run dev  # http://localhost:5173
-```
-
-### 6. Mobile App
-```bash
-cd apps/mobile
-npm install
-npx expo start  # Scan QR with Expo Go
 ```
 
 ## Demo Accounts (After Seeding)
@@ -66,23 +57,23 @@ npx expo start  # Scan QR with Expo Go
 
 ## Running Experiments (CLI)
 ```bash
-cd federated-learning
+cd backend/federated-learning
 # Download PIMA dataset from Kaggle, save to data/diabetes.csv
-python run_experiment.py --csv ../data/diabetes.csv --num-clients 5 --num-rounds 10
+python run_experiment.py --csv ../../data/diabetes.csv --num-clients 5 --num-rounds 10
 ```
 
 ## Running Tests
 
 ### API Tests
 ```bash
-cd services/api
+cd backend/api
 npm test              # Unit tests
 npm run test:e2e      # E2E (needs DATABASE_URL)
 ```
 
 ### ML Service Tests
 ```bash
-cd services/ml-service
+cd backend/ml-service
 .venv/Scripts/activate
 pytest tests/ -v
 ```

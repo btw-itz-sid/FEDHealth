@@ -2,11 +2,10 @@
 
 ## Project Structure
 This is a monorepo containing:
-- `apps/web/` — React research dashboard (Vite + TypeScript + Tailwind)
-- `apps/mobile/` — React Native patient app (Expo + TypeScript)
-- `services/api/` — NestJS backend API
-- `services/ml-service/` — Python ML service (FastAPI)
-- `federated-learning/` — Flower-based FL implementation
+- `frontend/` — React web app for patients, researchers, and admins (Vite + TypeScript + Tailwind). This is the only frontend; there is no mobile app.
+- `backend/api/` — NestJS backend API
+- `backend/ml-service/` — Python ML service (FastAPI). `scripts/start-backend.ps1` starts this together with the API.
+- `backend/federated-learning/` — Standalone FL experiment scripts (the app's FedAvg runs in `backend/ml-service/app/services/federated_service.py`)
 - `packages/shared-types/` — Shared TypeScript type definitions
 - `data/` — Dataset instructions (actual CSVs gitignored)
 - `docs/` — Documentation

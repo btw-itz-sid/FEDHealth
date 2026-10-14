@@ -5,17 +5,16 @@
 ### System Diagram
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌───────────────────┐
-│  React Web App  │    │ React Native App │    │ Expo Mobile App   │
-│  (Researcher)   │    │   (Patient)      │    │   (Android)       │
-└────────┬────────┘    └────────┬─────────┘    └─────────┬─────────┘
-         │                      │                         │
-         └──────────┬───────────┴─────────────────────────┘
+         ┌──────────────────────┐
+         │    React Web App     │
+         │ (Patient/Researcher/ │
+         │        Admin)        │
+         └──────────┬───────────┘
                     │ HTTPS / REST
                     ▼
          ┌──────────────────────┐
          │   NestJS API Server  │
-         │   (services/api)     │
+         │   (backend/api)      │
          │   Port: 3001         │
          ├──────────────────────┤
          │ • Auth (JWT+bcrypt)  │
@@ -31,13 +30,13 @@
          ▼                      ▼
 ┌─────────────────┐    ┌──────────────────────┐
 │ Neon PostgreSQL │    │ Python ML Service    │
-│ (Serverless)    │    │ (services/ml-service)│
+│ (Serverless)    │    │ (backend/ml-service) │
 │                 │    │ Port: 8000           │
 │ • Users/Roles   │    ├──────────────────────┤
 │ • Predictions   │    │ • Dataset validation │
 │ • Experiments   │    │ • Centralized train  │
-│ • Models        │    │ • FedAvg (Flower)    │
-│ • Audit logs    │    │ • DP-SGD             │
+│ • Models        │    │ • FedAvg simulation  │
+│ • Audit logs    │    │ • DP (clip + noise)  │
 │ • Datasets      │    │ • Prediction         │
 └─────────────────┘    └──────────────────────┘
 ```
@@ -47,18 +46,17 @@
 | Layer | Technology | Version |
 |-------|-----------|---------|
 | Web Frontend | React + Vite + TypeScript + Tailwind | React 18, Vite 5 |
-| Mobile Frontend | React Native + Expo + TypeScript | Expo SDK 51 |
 | API Backend | NestJS + TypeORM + TypeScript | NestJS 10 |
 | ML Service | Python + FastAPI + scikit-learn | Python 3.12 |
 | Database | Neon PostgreSQL (Serverless) | PostgreSQL 16 |
-| Federated Learning | Flower | 1.11 |
+| Federated Learning | Custom FedAvg simulation (NumPy) | — |
 | Authentication | JWT + bcrypt | — |
 
 ### Data Flow
 
-1. **Patient Assessment**: Mobile App → NestJS API → ML Service → prediction stored in PostgreSQL
+1. **Patient Assessment**: Web App (patient view) → NestJS API → ML Service → prediction stored in PostgreSQL
 2. **Research Experiment**: Web Dashboard → NestJS API → ML Service (train) → results stored in PostgreSQL
-3. **Federated Training**: Web Dashboard → NestJS API → ML Service → Flower server → simulated clients → aggregated model
+3. **Federated Training**: Web Dashboard → NestJS API → ML Service (`app/services/federated_service.py`) → simulated clients train locally → FedAvg aggregation (optionally clipped + noised for DP) → aggregated model registered; the API makes the active model serve patient predictions
 
 ### Security Boundaries
 
