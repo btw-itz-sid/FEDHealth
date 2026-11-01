@@ -200,3 +200,18 @@ body {
   height: 3px;
   background: linear-gradient(90deg, var(--color-primary-500), var(--color-teal-500));
 }
+
+/* Architecture diagram animations */
+.animate-in {
+  animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

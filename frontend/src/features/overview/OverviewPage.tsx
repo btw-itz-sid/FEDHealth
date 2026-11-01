@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
 import { methodLabel, riskColor } from '@/lib/format';
+import ArchitectureDiagram from '@/components/ArchitectureDiagram';
+import QuickStartGuide from '@/components/QuickStartGuide';
 
 export default function OverviewPage() {
   const { user } = useAuth();
@@ -47,33 +49,97 @@ export default function OverviewPage() {
         </p>
       </div>
 
-      {/* Stat cards */}
+      {/* ─── Architecture Diagram — always visible for researchers ─── */}
       {(user?.role === 'researcher' || user?.role === 'admin') && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="stat-card card">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Total Experiments</p>
-            <p className="text-2xl font-bold text-[var(--color-text-primary)]">
-              {loading ? '—' : experiments?.total || 0}
-            </p>
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-8">
+          {/* Left: architecture diagram (3 cols on xl) */}
+          <div className="xl:col-span-3 card">
+            <ArchitectureDiagram />
           </div>
-          <div className="stat-card card">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Completed</p>
-            <p className="text-2xl font-bold text-[var(--color-success)]">
-              {loading ? '—' : statusCounts.completed || 0}
-            </p>
+
+          {/* Right: quick stats + quick actions (2 cols on xl) */}
+          <div className="xl:col-span-2 space-y-4">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="stat-card card">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Total Experiments</p>
+                <p className="text-2xl font-bold text-[var(--color-text-primary)]">
+                  {loading ? '—' : experiments?.total || 0}
+                </p>
+              </div>
+              <div className="stat-card card">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Completed</p>
+                <p className="text-2xl font-bold text-[var(--color-success)]">
+                  {loading ? '—' : statusCounts.completed || 0}
+                </p>
+              </div>
+              <div className="stat-card card">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Running</p>
+                <p className="text-2xl font-bold text-[var(--color-warning)]">
+                  {loading ? '—' : statusCounts.running || 0}
+                </p>
+              </div>
+              <div className="stat-card card">
+                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Failed</p>
+                <p className="text-2xl font-bold text-[var(--color-error)]">
+                  {loading ? '—' : statusCounts.failed || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Pipeline summary card */}
+            <div className="card">
+              <h3 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Data Pipeline</h3>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--color-primary-100)]">
+                    <span className="text-sm">📁</span>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Source Dataset</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">PIMA Indians Diabetes (768 records, 8 features)</p>
+                  </div>
+                  <Link to="/datasets" className="text-xs text-[var(--color-primary-600)] hover:underline flex-shrink-0">View →</Link>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--color-teal-50)]">
+                    <span className="text-sm">🔀</span>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Data Split</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">80% train (partitioned to nodes) · 20% test (held out)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50">
+                    <span className="text-sm">🔬</span>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Training Methods</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">Centralized · FedAvg (IID / Non-IID) · Local Only · + DP</p>
+                  </div>
+                  <Link to="/experiments" className="text-xs text-[var(--color-primary-600)] hover:underline flex-shrink-0">Run →</Link>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50">
+                    <span className="text-sm">📊</span>
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Evaluation</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">Accuracy · F1 · ROC-AUC · Confusion Matrix · Privacy ε</p>
+                  </div>
+                  <Link to="/compare" className="text-xs text-[var(--color-primary-600)] hover:underline flex-shrink-0">Compare →</Link>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="stat-card card">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Running</p>
-            <p className="text-2xl font-bold text-[var(--color-warning)]">
-              {loading ? '—' : statusCounts.running || 0}
-            </p>
-          </div>
-          <div className="stat-card card">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Failed</p>
-            <p className="text-2xl font-bold text-[var(--color-error)]">
-              {loading ? '—' : statusCounts.failed || 0}
-            </p>
-          </div>
+        </div>
+      )}
+
+      {/* Demo Walkthrough */}
+      {(user?.role === 'researcher' || user?.role === 'admin') && (
+        <div className="mb-8">
+          <QuickStartGuide />
         </div>
       )}
 
@@ -149,28 +215,35 @@ export default function OverviewPage() {
 
       {/* Patient view */}
       {user?.role === 'patient' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="stat-card card">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Latest result</p>
-            {latest ? (
-              <>
-                <p className="text-2xl font-bold" style={{ color: riskColor(latest.riskLevel) }}>{latest.riskLevel} risk</p>
-                <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                  {(latest.probability * 100).toFixed(1)}% · {new Date(latest.createdAt).toLocaleDateString()}
-                </p>
-              </>
-            ) : (
-              <p className="text-2xl font-bold text-[var(--color-text-muted)]">{loading ? '—' : 'None yet'}</p>
-            )}
+        <div>
+          {/* Show simplified architecture for patients too */}
+          <div className="card mb-6">
+            <ArchitectureDiagram />
           </div>
-          <div className="stat-card card">
-            <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Assessments</p>
-            <p className="text-2xl font-bold">{loading ? '—' : predictions?.total || 0}</p>
-            <Link to="/history" className="text-xs text-[var(--color-primary-600)] hover:underline">View history →</Link>
-          </div>
-          <div className="card flex flex-col justify-center items-start">
-            <p className="text-sm text-[var(--color-text-secondary)] mb-3">Check your diabetes risk with 8 routine health measurements.</p>
-            <Link to="/assess" className="btn-primary">Start new assessment</Link>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="stat-card card">
+              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Latest result</p>
+              {latest ? (
+                <>
+                  <p className="text-2xl font-bold" style={{ color: riskColor(latest.riskLevel) }}>{latest.riskLevel} risk</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                    {(latest.probability * 100).toFixed(1)}% · {new Date(latest.createdAt).toLocaleDateString()}
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl font-bold text-[var(--color-text-muted)]">{loading ? '—' : 'None yet'}</p>
+              )}
+            </div>
+            <div className="stat-card card">
+              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Assessments</p>
+              <p className="text-2xl font-bold">{loading ? '—' : predictions?.total || 0}</p>
+              <Link to="/history" className="text-xs text-[var(--color-primary-600)] hover:underline">View history →</Link>
+            </div>
+            <div className="card flex flex-col justify-center items-start">
+              <p className="text-sm text-[var(--color-text-secondary)] mb-3">Check your diabetes risk with 8 routine health measurements.</p>
+              <Link to="/assess" className="btn-primary">Start new assessment</Link>
+            </div>
           </div>
         </div>
       )}
