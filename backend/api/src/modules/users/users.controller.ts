@@ -50,4 +50,11 @@ export class UsersController {
   async deactivate(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     return this.usersService.deactivate(id, (req.user as any).id);
   }
+
+  @Patch(':id/reactivate')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Reactivate user account (admin only)' })
+  async reactivate(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.usersService.reactivate(id, (req.user as any).id);
+  }
 }

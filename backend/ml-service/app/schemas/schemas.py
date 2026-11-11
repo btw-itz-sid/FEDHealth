@@ -23,6 +23,7 @@ class TrainRequest(BaseModel):
     )
     random_seed: int = Field(42, ge=0, le=999999, description="Random seed for reproducibility")
     test_size: float = Field(0.2, gt=0.05, lt=0.5, description="Fraction of data for testing")
+    balance_classes: bool = Field(False, description="Up-weight the minority (diabetes) class")
     experiment_id: Optional[str] = Field(None, description="Associated experiment ID")
     experiment_name: Optional[str] = Field(None, description="Experiment name")
 
@@ -58,6 +59,7 @@ class FederatedTrainRequest(BaseModel):
     dp_epsilon: float = Field(1.0, ge=0.05, le=100)
     dp_delta: float = Field(1e-5, gt=0, lt=0.1)
     dp_clip_norm: float = Field(1.0, gt=0, le=100)
+    balance_classes: bool = False
     experiment_id: Optional[str] = None
     experiment_name: Optional[str] = None
 

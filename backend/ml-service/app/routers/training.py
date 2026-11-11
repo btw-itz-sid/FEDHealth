@@ -56,6 +56,7 @@ async def train_centralized_model(request: TrainRequest):
             df=df,
             random_seed=request.random_seed,
             test_size=request.test_size,
+            balance_classes=request.balance_classes,
             experiment_id=request.experiment_id,
             experiment_name=request.experiment_name,
         )
@@ -111,6 +112,7 @@ async def train_federated_model(request: FederatedTrainRequest):
             dp_epsilon=request.dp_epsilon,
             dp_delta=request.dp_delta,
             dp_clip_norm=request.dp_clip_norm,
+            balance_classes=request.balance_classes,
             experiment_id=request.experiment_id,
             experiment_name=request.experiment_name,
         )

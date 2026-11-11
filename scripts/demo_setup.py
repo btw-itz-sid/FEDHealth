@@ -59,6 +59,7 @@ def main() -> int:
     parser.add_argument("--password", default=os.getenv("FEDHEALTH_RESEARCHER_PASSWORD", "ResearchPass123!"))
     parser.add_argument("--csv", default=str(ROOT / "data" / "diabetes.csv"))
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--balanced", action="store_true", help="Up-weight the minority class in every run")
     args = parser.parse_args()
 
     client = httpx.Client(base_url=args.api, timeout=60)
@@ -99,12 +100,15 @@ def main() -> int:
     ids = []
     for spec in SUITE:
         body = {"datasetId": dataset["id"], "randomSeed": args.seed, "testSize": 0.2, **spec}
+        if args.balanced:
+            body["name"] = f"{spec['name']} (balanced)"
+            body["balanceClasses"] = True
         if spec["trainingMethod"] != "centralized":
             body.update(FEDERATED_DEFAULTS)
         response = client.post("/experiments", json=body)
         response.raise_for_status()
         ids.append(response.json()["id"])
-        print(f"  started: {spec['name']}")
+        print(f"  started: {body['name']}")
 
     def all_done():
         exps = [client.get(f"/experiments/{i}").json() for i in ids]
@@ -113,12 +117,13 @@ def main() -> int:
     experiments = wait_for(all_done, timeout=300)
 
     print()
-    print(f"{'Experiment':<30} {'Status':<10} {'Accuracy':>9} {'F1':>7} {'ROC-AUC':>8}")
-    print("-" * 68)
+    print(f"{'Experiment':<41} {'Status':<10} {'Accuracy':>9} {'Recall':>7} {'F1':>7} {'ROC-AUC':>8}")
+    print("-" * 87)
     for e in experiments:
         m = e.get("finalMetrics") or {}
         fmt = lambda v: f"{v:.3f}" if isinstance(v, (int, float)) else "—"
-        print(f"{e['name']:<30} {e['status']:<10} {fmt(m.get('accuracy')):>9} {fmt(m.get('f1_score')):>7} {fmt(m.get('roc_auc')):>8}")
+        print(f"{e['name']:<41} {e['status']:<10} {fmt(m.get('accuracy')):>9} {fmt(m.get('recall')):>7} "
+              f"{fmt(m.get('f1_score')):>7} {fmt(m.get('roc_auc')):>8}")
         if e["status"] == "failed":
             print(f"    error: {e.get('errorMessage')}")
 

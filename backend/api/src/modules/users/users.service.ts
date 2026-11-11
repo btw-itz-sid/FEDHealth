@@ -36,6 +36,9 @@ export class UsersService {
   }
 
   async updateRole(userId: string, newRole: UserRole, adminId: string) {
+    if (userId === adminId) {
+      throw new ForbiddenException('You cannot change your own role');
+    }
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -55,6 +58,9 @@ export class UsersService {
   }
 
   async deactivate(userId: string, adminId: string) {
+    if (userId === adminId) {
+      throw new ForbiddenException('You cannot deactivate your own account');
+    }
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -69,5 +75,23 @@ export class UsersService {
     });
 
     return { id: user.id, email: user.email, isActive: false };
+  }
+
+  async reactivate(userId: string, adminId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.isActive = true;
+    await this.userRepository.save(user);
+
+    await this.auditService.log({
+      action: AuditAction.ADMIN_ACTION,
+      userId: adminId,
+      resourceType: 'user',
+      resourceId: userId,
+      metadata: { action: 'reactivated' },
+    });
+
+    return { id: user.id, email: user.email, isActive: true };
   }
 }

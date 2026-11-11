@@ -107,6 +107,7 @@ def train_centralized(
     df: pd.DataFrame,
     random_seed: int = RANDOM_SEED,
     test_size: float = TEST_SIZE,
+    balance_classes: bool = False,
     experiment_id: Optional[str] = None,
     experiment_name: Optional[str] = None,
 ) -> dict[str, Any]:
@@ -147,6 +148,7 @@ def train_centralized(
             random_state=random_seed,
             max_iter=1000,
             solver="lbfgs",
+            class_weight="balanced" if balance_classes else None,
         )),
     ])
 
@@ -200,6 +202,7 @@ def train_centralized(
             "test_size": test_size,
             "solver": "lbfgs",
             "max_iter": 1000,
+            "balance_classes": balance_classes,
         },
         "dataset_fingerprint": dataset_fingerprint,
         "metrics": metrics,

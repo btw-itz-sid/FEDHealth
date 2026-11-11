@@ -144,6 +144,7 @@ export default function ComparePage() {
     downloadFile('fedhealth-comparison.csv', toCsv(loaded.map(({ experiment: e }) => ({
       name: e.name,
       setup: methodLabel(e),
+      balanced_classes: e.balanceClasses ? 'yes' : 'no',
       clients: e.trainingMethod === 'centralized' ? '' : e.numClients,
       rounds: e.trainingMethod === 'centralized' ? '' : e.numRounds,
       accuracy: e.finalMetrics?.accuracy,

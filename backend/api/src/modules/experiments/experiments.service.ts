@@ -100,6 +100,7 @@ export class ExperimentsService {
       dataset_path: datasetFile,
       random_seed: experiment.randomSeed,
       test_size: experiment.testSize,
+      balance_classes: experiment.balanceClasses,
       experiment_id: experiment.id,
       experiment_name: experiment.name,
     };

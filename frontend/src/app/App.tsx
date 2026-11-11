@@ -13,6 +13,7 @@ import AssessPage from '@/features/assess/AssessPage';
 import HistoryPage from '@/features/history/HistoryPage';
 import ProfilePage from '@/features/profile/ProfilePage';
 import ComparePage from '@/features/compare/ComparePage';
+import HowItWorksPage from '@/features/how-it-works/HowItWorksPage';
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="assess" element={<AssessPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="how-it-works" element={<ProtectedRoute roles={['researcher', 'admin']}><HowItWorksPage /></ProtectedRoute>} />
         <Route path="compare" element={<ProtectedRoute roles={['researcher', 'admin']}><ComparePage /></ProtectedRoute>} />
         <Route path="datasets" element={<ProtectedRoute roles={['researcher', 'admin']}><DatasetsPage /></ProtectedRoute>} />
         <Route path="experiments" element={<ProtectedRoute roles={['researcher', 'admin']}><ExperimentsPage /></ProtectedRoute>} />

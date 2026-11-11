@@ -6,11 +6,14 @@ Simulated federated training of a logistic regression model on PIMA:
 - Aggregation: FedAvg (sample-weighted mean of client weights)
 - Optional differential privacy: per-client update clipping + Gaussian noise
 - Local-only baseline: every client trains alone, no aggregation
+- Optional class balancing: per-sample weights that up-weight the minority class
 
 Simulation assumptions (documented for the research report):
 - Imputer medians and scaler statistics are fit on the pooled training split
   and shared with all clients. A real deployment would need federated
   statistics or a fixed clinical normalisation.
+- Class-balancing weights come from the pooled training prevalence, like a
+  published population prior, so every method optimises the same objective.
 - The test split is held out before partitioning and never seen by clients.
 """
 
@@ -100,8 +103,9 @@ def local_sgd(
     learning_rate: float,
     batch_size: int,
     rng: np.random.Generator,
+    sample_weight: Optional[np.ndarray] = None,
 ) -> tuple[np.ndarray, float]:
-    """Mini-batch SGD on logistic loss with a small L2 penalty."""
+    """Mini-batch SGD on (optionally weighted) logistic loss with a small L2 penalty."""
     w = w.copy()
     n = len(y)
     for _ in range(epochs):
@@ -110,6 +114,8 @@ def local_sgd(
             batch = order[start:start + batch_size]
             Xb, yb = X[batch], y[batch]
             err = _predict_proba(w, b, Xb) - yb
+            if sample_weight is not None:
+                err = err * sample_weight[batch]
             w -= learning_rate * (Xb.T @ err / len(batch) + L2_PENALTY * w)
             b -= learning_rate * float(err.mean())
     return w, b
@@ -196,6 +202,7 @@ def train_federated(
     dp_epsilon: float = 1.0,
     dp_delta: float = 1e-5,
     dp_clip_norm: float = 1.0,
+    balance_classes: bool = False,
     experiment_id: Optional[str] = None,
     experiment_name: Optional[str] = None,
 ) -> dict[str, Any]:
@@ -230,6 +237,13 @@ def train_federated(
         partitions = partition_iid(y_train, num_clients, rng)
     clients = [(X_train[idx], y_train[idx]) for idx in partitions]
 
+    if balance_classes:
+        # Same formula as sklearn's class_weight="balanced" on the training split
+        class_weights = len(y_train) / (2 * np.bincount(y_train, minlength=2))
+        client_sample_weights = [class_weights[cy] for _, cy in clients]
+    else:
+        client_sample_weights = [None for _ in clients]
+
     client_profiles = [
         {
             "client_id": cid,
@@ -261,7 +275,8 @@ def train_federated(
 
             for cid, (cx, cy) in enumerate(clients):
                 w, b = local_sgd(global_w, global_b, cx, cy, local_epochs,
-                                 learning_rate, batch_size, rng)
+                                 learning_rate, batch_size, rng,
+                                 client_sample_weights[cid])
                 dw, db = w - global_w, b - global_b
                 update_norm = float(np.linalg.norm(np.concatenate([dw, [db]])))
                 if dp_enabled:
@@ -309,6 +324,12 @@ def train_federated(
 
         final_metrics = dict(rounds[-1]["eval_metrics"])
         final_w, final_b = global_w, global_b
+        # The exact parameter vector exchanged each round, in standardised feature space
+        final_metrics["global_model"] = {
+            "weights": {col: round(float(v), 6) for col, v in zip(PIMA_FEATURE_COLUMNS, final_w)},
+            "bias": round(float(final_b), 6),
+            "bytes_per_transfer": bytes_per_model,
+        }
 
     else:
         client_weights = [(np.zeros(num_features), 0.0) for _ in clients]
@@ -317,7 +338,8 @@ def train_federated(
             client_round_metrics = []
             for cid, (cx, cy) in enumerate(clients):
                 w, b = local_sgd(*client_weights[cid], cx, cy, local_epochs,
-                                 learning_rate, batch_size, rng)
+                                 learning_rate, batch_size, rng,
+                                 client_sample_weights[cid])
                 client_weights[cid] = (w, b)
                 test_m = evaluate(w, b, X_test, y_test)
                 client_round_metrics.append({
@@ -372,6 +394,7 @@ def train_federated(
         "dp_epsilon": dp_epsilon if dp_enabled else None,
         "dp_delta": dp_delta if dp_enabled else None,
         "dp_clip_norm": dp_clip_norm if dp_enabled else None,
+        "balance_classes": balance_classes,
     }
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")

@@ -15,6 +15,7 @@ interface ExperimentForm {
   batchSize: number;
   randomSeed: number;
   testSize: number;
+  balanceClasses: boolean;
   differentialPrivacy: boolean;
   dpEpsilon: number;
   dpDelta: number;
@@ -33,6 +34,7 @@ const DEFAULT_FORM: ExperimentForm = {
   batchSize: 32,
   randomSeed: 42,
   testSize: 0.2,
+  balanceClasses: true,
   differentialPrivacy: false,
   dpEpsilon: 1,
   dpDelta: 1e-5,
@@ -73,6 +75,7 @@ function toPayload(form: ExperimentForm) {
     partitionType: centralized ? 'none' : form.partitionType === 'none' ? 'iid' : form.partitionType,
     randomSeed: Number(form.randomSeed),
     testSize: Number(form.testSize),
+    balanceClasses: form.balanceClasses,
   };
   if (!centralized) {
     Object.assign(payload, {
@@ -120,6 +123,7 @@ export default function ExperimentsPage() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [suiteRunning, setSuiteRunning] = useState(false);
+  const [suiteBalanced, setSuiteBalanced] = useState(true);
 
   const validDatasets = datasets.filter((d) => d.status === 'valid');
 
@@ -179,7 +183,13 @@ export default function ExperimentsPage() {
     setError('');
     try {
       for (const exp of BENCHMARK_SUITE) {
-        await api.createExperiment(toPayload({ ...DEFAULT_FORM, datasetId: form.datasetId, ...exp } as ExperimentForm));
+        await api.createExperiment(toPayload({
+          ...DEFAULT_FORM,
+          datasetId: form.datasetId,
+          ...exp,
+          name: suiteBalanced ? `${exp.name} (balanced)` : exp.name,
+          balanceClasses: suiteBalanced,
+        } as ExperimentForm));
       }
       loadExperiments();
     } catch (err: any) {
@@ -201,7 +211,12 @@ export default function ExperimentsPage() {
           <h1 className="text-2xl font-bold">Experiments</h1>
           <p className="text-sm text-[var(--color-text-secondary)]">Centralized vs. local vs. federated learning, with optional differential privacy</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]"
+            title="Up-weight diabetic patients so the model misses fewer of them (higher recall)">
+            <input type="checkbox" checked={suiteBalanced} onChange={(e) => setSuiteBalanced(e.target.checked)} />
+            Balanced classes
+          </label>
           <button onClick={runSuite} disabled={suiteRunning || validDatasets.length === 0} className="btn-secondary"
             title="Runs centralized, FedAvg (IID / non-IID), local-only, and FedAvg+DP at 4 privacy levels">
             {suiteRunning ? 'Starting…' : '▶ Run benchmark suite'}
@@ -271,6 +286,13 @@ export default function ExperimentsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <NumberField label="Random seed" value={form.randomSeed} min={0} max={999999} onChange={(v) => set('randomSeed', v)} />
               <NumberField label="Test size" value={form.testSize} min={0.1} max={0.4} step={0.05} onChange={(v) => set('testSize', v)} hint="Held out, never seen by clients" />
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm font-medium mt-7">
+                  <input type="checkbox" checked={form.balanceClasses} onChange={(e) => set('balanceClasses', e.target.checked)} />
+                  Balance classes
+                </label>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">Up-weights diabetic patients (35% of data) so fewer cases are missed. Raises recall, may lower precision.</p>
+              </div>
             </div>
 
             {!isCentralized && (

@@ -86,6 +86,9 @@ export class Experiment {
   @Column({ default: false })
   differentialPrivacy: boolean;
 
+  @Column({ default: false })
+  balanceClasses: boolean;
+
   @Column('jsonb', { nullable: true })
   dpConfig: Record<string, any>;
 

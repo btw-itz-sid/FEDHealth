@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 const navItems = [
   { to: '/', label: 'Overview', icon: '📊', roles: ['patient', 'researcher', 'admin'] },
+  { to: '/how-it-works', label: 'How it works', icon: '🔄', roles: ['researcher', 'admin'] },
   { to: '/assess', label: 'Risk Assessment', icon: '🩺', roles: ['patient', 'researcher', 'admin'] },
   { to: '/history', label: 'My History', icon: '📋', roles: ['patient', 'researcher', 'admin'] },
   { to: '/datasets', label: 'Datasets', icon: '📁', roles: ['researcher', 'admin'] },

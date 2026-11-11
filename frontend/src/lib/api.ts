@@ -195,6 +195,14 @@ class ApiClient {
       body: { role },
     });
   }
+
+  async deactivateUser(userId: string) {
+    return this.request<any>(`/users/${userId}/deactivate`, { method: 'PATCH' });
+  }
+
+  async reactivateUser(userId: string) {
+    return this.request<any>(`/users/${userId}/reactivate`, { method: 'PATCH' });
+  }
 }
 
 export const api = new ApiClient();

@@ -15,6 +15,7 @@ from app.services.training_service import (
     preprocess_pima,
     train_centralized,
 )
+from app.services.federated_service import train_federated
 from app.config import (
     MODELS_DIR,
     PIMA_FEATURE_COLUMNS,
@@ -205,3 +206,40 @@ class TestTrainCentralized:
         result = train_centralized(df, random_seed=42)
         assert result["status"] == "ready"
         assert 0.0 <= result["metrics"]["accuracy"] <= 1.0
+
+    def test_balanced_classes_raises_recall(self):
+        df = make_valid_df(n=300)
+        plain = train_centralized(df, random_seed=42)
+        balanced = train_centralized(df, random_seed=42, balance_classes=True)
+        assert balanced["training_config"]["balance_classes"] is True
+        assert plain["training_config"]["balance_classes"] is False
+        assert balanced["metrics"]["recall"] >= plain["metrics"]["recall"]
+
+
+class TestFederatedBalancing:
+    @pytest.fixture(autouse=True)
+    def cleanup_models(self):
+        yield
+        if MODELS_DIR.exists():
+            for d in MODELS_DIR.iterdir():
+                if d.is_dir() and d.name.startswith("fedavg_"):
+                    shutil.rmtree(d, ignore_errors=True)
+
+    @pytest.mark.parametrize("method", ["fedavg", "local_only"])
+    def test_balanced_classes_raises_recall(self, method):
+        df = make_valid_df(n=300)
+        common = dict(training_method=method, partition_type="iid", num_clients=3,
+                      num_rounds=3, local_epochs=2, learning_rate=0.1, batch_size=32, random_seed=42)
+        plain = train_federated(df, **common)
+        balanced = train_federated(df, balance_classes=True, **common)
+        assert balanced["training_config"]["balance_classes"] is True
+        assert balanced["metrics"]["recall"] >= plain["metrics"]["recall"]
+
+    def test_default_is_unweighted_and_reproducible(self):
+        df = make_valid_df(n=300)
+        common = dict(training_method="fedavg", partition_type="iid", num_clients=3,
+                      num_rounds=3, local_epochs=2, learning_rate=0.1, batch_size=32, random_seed=42)
+        r1 = train_federated(df, **common)
+        r2 = train_federated(df, balance_classes=False, **common)
+        assert r1["metrics"]["accuracy"] == r2["metrics"]["accuracy"]
+        assert r1["training_config"]["balance_classes"] is False

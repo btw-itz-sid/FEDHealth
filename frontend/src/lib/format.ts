@@ -10,6 +10,7 @@ export function methodLabel(exp: {
   trainingMethod?: string;
   partitionType?: string;
   differentialPrivacy?: boolean;
+  balanceClasses?: boolean;
   dpConfig?: { epsilon?: number } | null;
 }): string {
   const method =
@@ -23,6 +24,9 @@ export function methodLabel(exp: {
   }
   if (exp.differentialPrivacy) {
     parts.push(`DP ε=${exp.dpConfig?.epsilon ?? '?'}`);
+  }
+  if (exp.balanceClasses) {
+    parts.push('Balanced');
   }
   return parts.join(' · ');
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 /**
  * FedHealth Architecture Diagram
@@ -152,7 +153,7 @@ function AnimatedArrow({ direction = 'down', color = '#94a3b8' }: { direction?: 
 
 /* ---------- main component ---------- */
 
-export default function ArchitectureDiagram() {
+export default function ArchitectureDiagram({ walkthroughHref }: { walkthroughHref?: string }) {
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
 
   const layerBase =
@@ -162,13 +163,20 @@ export default function ArchitectureDiagram() {
   return (
     <div className="space-y-2">
       {/* Title */}
-      <div className="mb-2">
-        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
-          How Federated Learning Works in FedHealth
-        </h2>
-        <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-          Click any layer to learn more · Data never leaves the hospital
-        </p>
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
+            How Federated Learning Works in FedHealth
+          </h2>
+          <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
+            Click any layer to learn more · Data never leaves the hospital
+          </p>
+        </div>
+        {walkthroughHref && (
+          <Link to={walkthroughHref} className="btn-primary text-xs py-1.5 px-3">
+            ▶ Step-by-step walkthrough
+          </Link>
+        )}
       </div>
 
       {/* ── Layer 1: Hospitals ── */}

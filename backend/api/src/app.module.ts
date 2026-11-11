@@ -32,6 +32,14 @@ import { HealthModule } from './modules/health/health.module';
         autoLoadEntities: true,
         synchronize: config.get('NODE_ENV') === 'development',
         logging: config.get('NODE_ENV') === 'development' ? ['error', 'warn'] : ['error'],
+        // Each new TLS connection to Neon costs several round trips, so keep idle
+        // connections open instead of the node-postgres default of 10 s.
+        extra: {
+          max: 10,
+          idleTimeoutMillis: 10 * 60 * 1000,
+          keepAlive: true,
+          connectionTimeoutMillis: 15000,
+        },
       }),
     }),
 

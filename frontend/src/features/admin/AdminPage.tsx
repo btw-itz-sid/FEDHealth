@@ -1,17 +1,53 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminPage() {
+  const { user: me } = useAuth();
   const [users, setUsers] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<any>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingLogs, setLoadingLogs] = useState(true);
   const [tab, setTab] = useState<'users' | 'audit'>('users');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  const loadUsers = () => {
+    setLoadingUsers(true);
+    return api.getUsers(1, 50).then(setUsers).catch(() => {}).finally(() => setLoadingUsers(false));
+  };
 
   useEffect(() => {
-    api.getUsers().then(setUsers).catch(() => {}).finally(() => setLoadingUsers(false));
+    loadUsers();
     api.getAuditLogs().then(setAuditLogs).catch(() => {}).finally(() => setLoadingLogs(false));
   }, []);
+
+  const changeRole = async (id: string, role: string) => {
+    setError('');
+    setBusyId(id);
+    try {
+      await api.updateUserRole(id, role);
+      await loadUsers();
+    } catch (err: any) {
+      setError(err.message || 'Could not change role');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const setActive = async (id: string, active: boolean) => {
+    setError('');
+    setBusyId(id);
+    try {
+      if (active) await api.reactivateUser(id);
+      else await api.deactivateUser(id);
+      await loadUsers();
+    } catch (err: any) {
+      setError(err.message || 'Could not update account');
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <div>
@@ -33,6 +69,7 @@ export default function AdminPage() {
       {/* Users tab */}
       {tab === 'users' && (
         <div className="card">
+          {error && <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>}
           {loadingUsers ? (
             <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-primary-600)]"></div></div>
           ) : users?.items?.length > 0 ? (
@@ -45,18 +82,46 @@ export default function AdminPage() {
                     <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Role</th>
                     <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Status</th>
                     <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Joined</th>
+                    <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.items.map((u: any) => (
+                  {users.items.map((u: any) => {
+                    const isSelf = u.id === me?.id;
+                    return (
                     <tr key={u.id} className="border-b border-[var(--color-border)] last:border-0">
                       <td className="py-3 px-2">{u.email}</td>
                       <td className="py-3 px-2">{u.firstName} {u.lastName}</td>
-                      <td className="py-3 px-2"><span className="badge badge-info capitalize">{u.role}</span></td>
+                      <td className="py-3 px-2">
+                        <select
+                          className="input py-1.5 text-sm capitalize"
+                          value={u.role}
+                          disabled={isSelf || busyId === u.id}
+                          onChange={(e) => changeRole(u.id, e.target.value)}
+                        >
+                          <option value="patient">patient</option>
+                          <option value="researcher">researcher</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </td>
                       <td className="py-3 px-2"><span className={`badge ${u.isActive ? 'badge-success' : 'badge-error'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
                       <td className="py-3 px-2 text-[var(--color-text-muted)]">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="py-3 px-2">
+                        {isSelf ? (
+                          <span className="text-xs text-[var(--color-text-muted)]">You</span>
+                        ) : (
+                          <button
+                            className="btn-secondary text-xs"
+                            disabled={busyId === u.id}
+                            onClick={() => setActive(u.id, !u.isActive)}
+                          >
+                            {u.isActive ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

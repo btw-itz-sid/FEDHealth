@@ -6,13 +6,23 @@ The goal of the project is a research comparison: **centralized vs. local-only v
 
 ---
 
-## Progress (2026-10-14)
+## Progress (2026-11-11)
 
-Phases 1–3 are implemented and verified end to end on Neon (all 9 benchmark experiments complete; patient and researcher pages checked in the browser). Phase 4 items 2–3 (DP from the web app, cumulative ε tracking) were done along the way, using the custom FedAvg simulation (option a).
+The research demo is complete: patient assessment and history, researcher experiments, Compare, model registry, FedAvg (IID and non-IID), differential privacy, and the results in `docs/fedhealth-comparison.csv` and `docs/RESEARCH_NOTES.md`. Admin can change roles and deactivate accounts. Code is on GitHub (`main`).
 
-Still open from Phases 1–3:
-- Phase 1.2: the untracked `Datasets/` folder (notebooks + an unrelated 500-row synthetic CSV) is untouched.
-- Phase 2.6: `frontend/src/lib/api.ts` still uses `any` instead of `packages/shared-types`.
+Added 2026-11-11:
+- Class balancing option for every method (recall 0.50 → 0.70 centralized, 0.50 → 0.69 FedAvg IID, ROC-AUC unchanged). Benchmark suite now has 18 runs: 9 unweighted, 9 balanced.
+- A learning curve shows more PIMA-style rows would not help much (validation ROC-AUC flat after ~300 rows).
+- "How it works" page: a 7-step animated walkthrough of one real FedAvg run (hospitals, local training, weights-only upload, FedAvg, rounds, DP, results).
+- `scripts/export_comparison.py` regenerates the comparison CSV from the API.
+
+Still open before the 20 Nov review:
+- Deploy the web app, API, and ML service so the examiner can open a public URL. Needs a hosting account (Render/Railway + the existing Neon database).
+- Phase 1.2: untracked `Datasets/` folder (notebooks + an unrelated CSV). Leave it out of git.
+- Phase 2.6: `frontend/src/lib/api.ts` still uses `any`.
+- Phase 5.4: TypeORM migrations (`synchronize: false`) for production.
+- Optional: FedProx, Playwright smoke tests.
+- Optional: move the Neon database from `us-east-2` to an Asia region. Each query from India costs ~290 ms, so pages take 1–3 s to load.
 
 ## Starting State (before Phases 1–3)
 

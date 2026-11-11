@@ -54,7 +54,7 @@ export default function OverviewPage() {
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-8">
           {/* Left: architecture diagram (3 cols on xl) */}
           <div className="xl:col-span-3 card">
-            <ArchitectureDiagram />
+            <ArchitectureDiagram walkthroughHref="/how-it-works" />
           </div>
 
           {/* Right: quick stats + quick actions (2 cols on xl) */}

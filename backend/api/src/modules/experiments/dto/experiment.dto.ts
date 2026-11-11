@@ -107,6 +107,14 @@ export class CreateExperimentDto {
   @IsBoolean()
   differentialPrivacy?: boolean;
 
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Up-weight the minority (diabetes) class during training',
+  })
+  @IsOptional()
+  @IsBoolean()
+  balanceClasses?: boolean;
+
   @ApiPropertyOptional({ type: () => DpConfigDto })
   @IsOptional()
   @ValidateNested()
