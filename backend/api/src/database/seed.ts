@@ -1,114 +1,21 @@
-/**
- * FedHealth — Database Seed Script
- * ==================================
- * Seeds the database with an admin user and default data.
- * Run with: npx ts-node -r tsconfig-paths/register src/database/seed.ts
- */
-
-import { DataSource } from 'typeorm';
+/** Creates one administrator from server environment; never seeds public demo accounts. */
+import dataSource from './data-source';
 import * as bcrypt from 'bcryptjs';
+import { isEmail } from 'class-validator';
 import { User, UserRole } from '../modules/users/entities/user.entity';
-import { config } from 'dotenv';
-import { join } from 'path';
-
-config({ path: '../../.env' });
-config();
-process.env.TZ = 'UTC';
 
 async function seed() {
-  const dataSource = new DataSource({
-    type: 'postgres',
-    url: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    entities: [join(__dirname, '..', 'modules', '**', 'entities', '*.entity.{ts,js}')],
-    synchronize: true,
-  });
-
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !isEmail(email) || !password || password.length < 12 || Buffer.byteLength(password, 'utf8') > 72) {
+    throw new Error('Set ADMIN_EMAIL and a unique ADMIN_PASSWORD of 12 or more characters (at most 72 UTF-8 bytes)');
+  }
   await dataSource.initialize();
-  console.log('Connected to database');
-
-  const userRepo = dataSource.getRepository(User);
-
-  // Seed admin user
-  const existingAdmin = await userRepo.findOne({
-    where: { email: 'admin@fedhealth.dev' },
-  });
-
-  if (!existingAdmin) {
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash('AdminPass123!', salt);
-
-    const admin = userRepo.create({
-      email: 'admin@fedhealth.dev',
-      passwordHash,
-      firstName: 'Admin',
-      lastName: 'User',
-      role: UserRole.ADMIN,
-      isActive: true,
-      consentGiven: true,
-    });
-
-    await userRepo.save(admin);
-    console.log('Created admin user: admin@fedhealth.dev / AdminPass123!');
-  } else {
-    console.log('Admin user already exists');
-  }
-
-  // Seed researcher user
-  const existingResearcher = await userRepo.findOne({
-    where: { email: 'researcher@fedhealth.dev' },
-  });
-
-  if (!existingResearcher) {
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash('ResearchPass123!', salt);
-
-    const researcher = userRepo.create({
-      email: 'researcher@fedhealth.dev',
-      passwordHash,
-      firstName: 'Research',
-      lastName: 'User',
-      role: UserRole.RESEARCHER,
-      isActive: true,
-      consentGiven: true,
-    });
-
-    await userRepo.save(researcher);
-    console.log('Created researcher: researcher@fedhealth.dev / ResearchPass123!');
-  } else {
-    console.log('Researcher user already exists');
-  }
-
-  // Seed patient user
-  const existingPatient = await userRepo.findOne({
-    where: { email: 'patient@fedhealth.dev' },
-  });
-
-  if (!existingPatient) {
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash('PatientPass123!', salt);
-
-    const patient = userRepo.create({
-      email: 'patient@fedhealth.dev',
-      passwordHash,
-      firstName: 'Patient',
-      lastName: 'Demo',
-      role: UserRole.PATIENT,
-      isActive: true,
-      consentGiven: true,
-    });
-
-    await userRepo.save(patient);
-    console.log('Created patient: patient@fedhealth.dev / PatientPass123!');
-  } else {
-    console.log('Patient user already exists');
-  }
-
-  await dataSource.destroy();
-  console.log('Seed complete');
+  try {
+    const repository = dataSource.getRepository(User);
+    if (await repository.exists({ where: { email } })) throw new Error('An account already exists with this email; no changes made');
+    await repository.save(repository.create({ email, passwordHash: await bcrypt.hash(password, 12), firstName: 'Workspace', lastName: 'Administrator', role: UserRole.ADMIN, isActive: true }));
+    console.log('Administrator created. No credentials are printed.');
+  } finally { await dataSource.destroy(); }
 }
-
-seed().catch((err) => {
-  console.error('Seed failed:', err);
-  process.exit(1);
-});
+seed().catch(() => { console.error('Administrator setup failed. Check the environment, existing account, database connection and migrations.'); process.exitCode = 1; });

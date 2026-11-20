@@ -2,7 +2,7 @@
 FedHealth — demo setup
 ======================
 Prepares a running stack for a live demo:
-1. Logs in as the seeded researcher
+1. Logs in with an approved research account
 2. Uploads data/diabetes.csv (if no valid dataset exists yet) and waits for validation
 3. Runs the benchmark suite (centralized, FedAvg IID/non-IID, local-only, FedAvg+DP)
 4. Waits for every experiment to finish and prints a results table
@@ -55,20 +55,22 @@ def wait_for(predicate, timeout: float, interval: float = 1.5):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--api", default=os.getenv("FEDHEALTH_API", "http://localhost:3001/api/v1"))
-    parser.add_argument("--email", default="researcher@fedhealth.dev")
-    parser.add_argument("--password", default=os.getenv("FEDHEALTH_RESEARCHER_PASSWORD", "ResearchPass123!"))
+    parser.add_argument("--email", default=os.getenv("FEDHEALTH_RESEARCHER_EMAIL"))
+    parser.add_argument("--password", default=os.getenv("FEDHEALTH_RESEARCHER_PASSWORD"))
     parser.add_argument("--csv", default=str(ROOT / "data" / "diabetes.csv"))
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--balanced", action="store_true", help="Up-weight the minority class in every run")
     args = parser.parse_args()
+    if not args.email or not args.password:
+        parser.error("Set FEDHEALTH_RESEARCHER_EMAIL and FEDHEALTH_RESEARCHER_PASSWORD, or provide --email and --password")
 
-    client = httpx.Client(base_url=args.api, timeout=60)
+    client = httpx.Client(base_url=args.api, timeout=60, headers={"X-FedHealth-Client": "web"})
 
     login = client.post("/auth/login", json={"email": args.email, "password": args.password})
     if login.status_code != 201 and login.status_code != 200:
-        print(f"Login failed ({login.status_code}): {login.text}. Did you run `npm run seed`?")
+        print(f"Login failed ({login.status_code}): {login.text}. Check that this account has approved research access.")
         return 1
-    client.headers["Authorization"] = f"Bearer {login.json()['accessToken']}"
+    # httpx retains the HttpOnly session cookie for subsequent API calls.
 
     datasets = client.get("/datasets", params={"limit": 100}).json()["items"]
     dataset = next((d for d in datasets if d["status"] == "valid"), None)

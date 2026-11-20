@@ -15,35 +15,13 @@ interface RequestOptions {
 }
 
 class ApiClient {
-  private token: string | null = null;
-
-  setToken(token: string | null) {
-    this.token = token;
-    if (token) {
-      localStorage.setItem('fedhealth_token', token);
-    } else {
-      localStorage.removeItem('fedhealth_token');
-    }
-  }
-
-  getToken(): string | null {
-    if (!this.token) {
-      this.token = localStorage.getItem('fedhealth_token');
-    }
-    return this.token;
-  }
-
   private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { method = 'GET', body, headers = {}, signal } = options;
 
     const requestHeaders: Record<string, string> = {
+      'X-FedHealth-Client': 'web',
       ...headers,
     };
-
-    const token = this.getToken();
-    if (token) {
-      requestHeaders['Authorization'] = `Bearer ${token}`;
-    }
 
     if (body && !(body instanceof FormData)) {
       requestHeaders['Content-Type'] = 'application/json';
@@ -55,14 +33,14 @@ class ApiClient {
         method,
         headers: requestHeaders,
         body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
-        signal,
+        credentials: 'include',
+        signal: signal ?? AbortSignal.timeout(60000),
       });
     } catch {
-      throw new Error('Cannot reach the server. Start the backend, then try again.');
+      throw new Error('The service is temporarily unavailable. Please try again.');
     }
 
-    if (response.status === 401 && token && !endpoint.startsWith('/auth/login')) {
-      this.setToken(null);
+    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
       window.location.assign('/login');
     }
 
@@ -81,17 +59,21 @@ class ApiClient {
 
   // ---- Auth ----
   async register(data: { email: string; password: string; firstName: string; lastName: string; role?: string }) {
-    return this.request<{ user: any; accessToken: string }>('/auth/register', {
+    return this.request<{ user: any }>('/auth/register', {
       method: 'POST',
       body: data,
     });
   }
 
   async login(data: { email: string; password: string }) {
-    return this.request<{ user: any; accessToken: string }>('/auth/login', {
+    return this.request<{ user: any }>('/auth/login', {
       method: 'POST',
       body: data,
     });
+  }
+
+  async logout() {
+    return this.request('/auth/logout', { method: 'POST' });
   }
 
   async getProfile() {

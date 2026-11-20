@@ -4,11 +4,11 @@
 
 ### Privacy-Preserving Federated Learning for Diabetes Risk Prediction
 
-A full-stack research platform that demonstrates how multiple hospitals can collaboratively train a machine learning model **without sharing patient data**.
+A full-stack research application that simulates collaborative model training across hospital partitions of public data. FedAvg combines parameter updates and sample counts; the current simulation runs in one process.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)](https://react.dev/)
-[![NestJS](https://img.shields.io/badge/NestJS-10-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Python_3.12-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/Neon_PostgreSQL-Serverless-4169E1?logo=postgresql&logoColor=white)](https://neon.tech/)
 
@@ -57,7 +57,7 @@ Instead of sending data to a central server, each hospital trains a model locall
                      └─────────────┘
 ```
 
-> **Key insight**: Raw patient data **never leaves** the hospital. Only model weight updates are shared.
+> **Implementation scope**: the FedAvg aggregation function receives parameter updates and sample counts, not patient records. Hospitals are simulated partitions of a public CSV in one Python process; preprocessing uses pooled training statistics. This does not establish network isolation or a privacy guarantee.
 
 ---
 
@@ -73,7 +73,7 @@ Instead of sending data to a central server, each hospital trains a model locall
                                  │                        │
                           ┌──────▼──────────┐     ┌───────▼──────────┐
                           │ Neon PostgreSQL  │     │ FL Simulator     │
-                          │ (users, exps,   │     │ (FedAvg, DP,     │
+                          │ (users, exps,   │     │ (FedAvg, noise,  │
                           │  predictions)   │     │  partitioning)   │
                           └─────────────────┘     └──────────────────┘
 ```
@@ -145,7 +145,7 @@ FedHealth/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Node.js** 18+ / npm 9+
+- **Node.js** 22.12+ / npm 9+
 - **Python** 3.12+
 - **Neon PostgreSQL** database (free tier: [neon.tech](https://neon.tech))
 
@@ -185,7 +185,7 @@ python -m venv .venv
 # API — Node.js
 cd ../api
 npm install
-npm run seed        # Creates demo user accounts
+# Create the admin after migrations using ADMIN_EMAIL / ADMIN_PASSWORD; see below.
 
 # Frontend — React app
 cd ../../frontend
@@ -211,19 +211,23 @@ Or double-click: `scripts\start-backend.cmd` and `scripts\start-frontend.cmd`.
 | http://localhost:5173 | Web application |
 | http://localhost:3001/api/docs | Swagger API documentation |
 
-### Demo Accounts (created by `npm run seed`)
+### Account setup
 
-| Role | Email | Password | Access |
-|------|-------|----------|--------|
-| 🧑‍⚕️ Patient | patient@fedhealth.dev | PatientPass123! | Risk assessment, prediction history |
-| 🔬 Researcher | researcher@fedhealth.dev | ResearchPass123! | Datasets, experiments, models, comparison |
-| ⚙️ Admin | admin@fedhealth.dev | AdminPass123! | Everything + user management |
+Public registration creates a personal account. For a new database, run the initial migration and create one administrator using server-side `ADMIN_EMAIL` / `ADMIN_PASSWORD` variables and `npm run seed`. The seed creates no default-password demo accounts. The administrator grants research access through Administration. Existing local accounts remain unchanged. See [deployment and staging steps](docs/DEPLOYMENT.md).
 
-> These are local development credentials only.
+### November 20 architecture upgrade
+
+The live application focuses on assessments, datasets, training and results. Presentation routes and contextual viva drawers are removed from normal navigation. Offline explanation material remains in `docs/VIVA_GUIDE.md` and `docs/architecture.md`. Recorded FedAvg payloads remain available inside completed experiment evidence.
+
+The default application flow is **Train model → Results → Assessment**; dataset/registry controls and detailed charts are under advanced disclosures. The [prediction improvement](docs/MODEL_IMPROVEMENT.md) adds development-only CV model selection and a separately labeled centralized Random Forest baseline (75.97% on the existing seed-42 holdout; 78.35% mean over three overlapping holdouts). It is the current assessment model; the original FedAvg proof remains a separate research experiment. These exploratory measurements do not establish clinical validity.
+
+New experiments use protocol v2: **491 training / 123 validation / 154 final test** records at the default PIMA settings. Rounds use validation; final cards use test. Legacy results are preserved and comparison mismatches are flagged.
+
+See [architecture](docs/architecture.md), [measured 54-run benchmark](docs/RESEARCH_NOTES.md), [application demo / Hinglish viva guide](docs/VIVA_GUIDE.md), [UI changes and checks](docs/UI_UX_REVAMP.md), and [incoming dataset audit](docs/DATASET_AUDIT.md). Run `backend\ml-service\.venv\Scripts\python scripts\run_research_benchmark.py` for a reproducible three-seed comparison without changing the active model.
 
 ### 6. Load Demo Experiments (optional)
 
-With all services running, this uploads the dataset and runs the full 9-experiment benchmark suite:
+Set `FEDHEALTH_RESEARCHER_EMAIL` and `FEDHEALTH_RESEARCHER_PASSWORD` to an approved account. With all services running, this uploads the dataset and runs the full 9-experiment benchmark suite:
 
 ```bash
 backend\ml-service\.venv\Scripts\python scripts\demo_setup.py
@@ -231,56 +235,23 @@ backend\ml-service\.venv\Scripts\python scripts\demo_setup.py
 
 ---
 
-## 📱 App Pages & Demo Flow
+## Application flow
 
-When presenting to your guide, follow this path through the app:
+- Personal accounts: Home, New assessment, My history and Account settings.
+- Approved research accounts: choose a validated labeled CSV, select the training method, review its input summary, then start training. Results show the test metrics and saved evidence.
+- Advanced tools: shared datasets and model registry. Administrators also manage account roles.
+- Training cannot start without choosing its dataset. Queued jobs persist in PostgreSQL; only queued jobs can be cancelled. The active registered model supplies assessments.
 
-### Step 1: Overview Page — Architecture Diagram
-The landing page shows an **interactive federated learning architecture diagram** with 5 clickable layers:
-
-| Layer | What it shows |
-|-------|--------------|
-| **① Healthcare Centers** | 3 simulated hospitals with private patient data |
-| **② Standardised Data** | Preprocessed health records at each site |
-| **③ Local Models** | Each hospital trains its own logistic regression model |
-| **④ Central Aggregator** | FedAvg server combines weight updates |
-| **⑤ Evaluation** | Global model tested on 20% held-out test set |
-
-Click any layer to expand detailed explanations.
-
-### Step 2: Datasets Page — Upload CSV
-Upload the PIMA Indians Diabetes CSV. The system validates it (checks columns, types, missing values) and shows dataset stats.
-
-### Step 3: Experiments Page — Run Training
-- Pick a **training method**: Centralized, FedAvg, or Local-Only
-- Configure **clients** (hospitals), **rounds**, **partition type** (IID / Non-IID)
-- Optionally enable **Differential Privacy** (ε, δ, clip norm)
-- Or click **"Run benchmark suite"** to run all 9 methods at once
-
-### Step 4: Experiment Detail — Per-Round Metrics
-See accuracy/F1/ROC-AUC converge over rounds, client data distribution charts, confusion matrices, and privacy budget tracking.
-
-### Step 5: Compare Page — Side-by-Side Analysis
-Select 2+ experiments to compare:
-- Bar charts for accuracy, F1, ROC-AUC
-- Convergence curves overlaid
-- Privacy-utility tradeoff chart
-- Auto-generated research findings
-- CSV export for your report
-
-### Step 6: Risk Assessment — Live Prediction
-Enter 8 health measurements (or use sample patients) to get a diabetes risk prediction from the **federated model** — trained without any single party seeing all the data.
-
----
+The app uses HttpOnly cookie sessions, and a private service key is required between API and ML in production. Deploy with `compose.production.yml`, persistent volumes and a separate production Neon database. [Deployment instructions and remaining staging gates](docs/DEPLOYMENT.md).
 
 ## 🔬 Research Features
 
 | Feature | Description |
 |---------|-------------|
-| **Centralized Baseline** | Standard logistic regression on pooled data (upper bound) |
+| **Centralized Baseline** | Standard logistic regression on pooled training data (comparison baseline) |
 | **FedAvg (IID)** | Federated averaging with uniform data distribution across clients |
 | **FedAvg (Non-IID)** | Federated averaging with Dirichlet label skew (α=0.5) — realistic |
-| **Local-Only** | Each client trains independently, no collaboration (lower bound) |
+| **Local-Only** | Each client trains independently, no collaboration (comparison baseline) |
 | **Differential Privacy** | Per-client update clipping + Gaussian noise (ε = 0.5, 1, 5, 10) |
 | **Compare View** | Side-by-side metrics, convergence curves, privacy–utility chart, auto findings |
 | **Model Registry** | One active model serves all patient risk assessments |
@@ -303,8 +274,8 @@ Enter 8 health measurements (or use sample patients) to get a diabetes risk pred
 | **CORS Whitelist** | Only allowed origins |
 | **Audit Logging** | All security-relevant events logged |
 | **Ownership Scoping** | Patients only see their own predictions |
-| **Differential Privacy** | Optional DP on FL training (Gaussian mechanism) |
-| **Data Never Leaves** | FL simulation ensures data stays at the simulated hospital node |
+| **Noise experiment** | Optional seeded clipping and Gaussian noise; not certified DP |
+| **Aggregation contract** | FedAvg receives updates and counts; logical hospital partitions share one process |
 
 ---
 
@@ -332,7 +303,7 @@ Source: [UCI ML Repository](https://archive.ics.uci.edu/ml/datasets/pima+indians
 | Layer | Technologies |
 |-------|-------------|
 | **Frontend** | React 18, TypeScript, Tailwind CSS 4, Vite, Recharts, React Router, React Hook Form, Zod |
-| **Backend API** | NestJS 10, TypeORM, JWT (Passport), bcrypt, Helmet, class-validator, Swagger |
+| **Backend API** | NestJS 11, TypeORM, JWT (Passport), bcrypt, Helmet, class-validator, Swagger |
 | **ML Service** | Python 3.12, FastAPI, scikit-learn, NumPy, pandas, joblib |
 | **Database** | Neon PostgreSQL (serverless), TypeORM migrations |
 | **DevOps** | PowerShell start scripts, npm workspaces |

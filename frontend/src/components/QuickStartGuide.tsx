@@ -47,7 +47,7 @@ const STEPS = [
   {
     number: 4,
     title: 'Make a Prediction',
-    description: 'Use the trained global model to predict diabetes risk for a patient. Enter 8 health measurements or click a sample patient. The prediction uses the federated model — trained without any single party seeing all the data.',
+    description: 'Enter 8 health measurements or choose an illustrative sample. The assessment uses the model currently active in the registry; check its training method and version. Results are research estimates.',
     icon: '🩺',
     link: '/assess',
     linkLabel: 'Try Risk Assessment →',

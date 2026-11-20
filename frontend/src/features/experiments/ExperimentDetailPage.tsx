@@ -4,6 +4,9 @@ import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '@/lib/api';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon from '@/components/ui/Icon';
+import FederationRoundInspector from '@/components/FederationRoundInspector';
 import { downloadFile, methodLabel, num, pct, statusBadge, toCsv } from '@/lib/format';
 
 function ConfusionMatrix({ matrix }: { matrix: number[][] }) {
@@ -36,6 +39,8 @@ export default function ExperimentDetailPage() {
   const [rounds, setRounds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [tab, setTab] = useState<'summary'|'rounds'|'clients'>('summary');
+  const [actionError,setActionError] = useState('');
 
   const load = useCallback(() => {
     if (!id) return Promise.resolve();
@@ -65,6 +70,9 @@ export default function ExperimentDetailPage() {
   }
 
   const m = experiment.finalMetrics;
+  const hasValidation = !!m?.evaluation_protocol;
+  const optimized = !!m?.optimization;
+  const roundSplit = optimized ? 'Training' : hasValidation ? 'Validation' : 'Test (legacy protocol)';
   const isFederated = experiment.trainingMethod !== 'centralized';
   const isLocal = experiment.trainingMethod === 'local_only';
   const clients: any[] = m?.clients || [];
@@ -91,6 +99,7 @@ export default function ExperimentDetailPage() {
   const exportCsv = () => {
     downloadFile(`${experiment.name}-rounds.csv`, toCsv(rounds.map((r) => ({
       round: r.roundNumber,
+      evaluation_split: r.evalMetrics?.evaluation_split ?? 'test_legacy',
       accuracy: r.evalMetrics?.accuracy,
       precision: r.evalMetrics?.precision,
       recall: r.evalMetrics?.recall,
@@ -105,98 +114,21 @@ export default function ExperimentDetailPage() {
 
   const cancel = async () => {
     setCancelling(true);
-    try { await api.cancelExperiment(experiment.id); await load(); } finally { setCancelling(false); }
+    try { await api.cancelExperiment(experiment.id); await load(); } catch(error) {setActionError(error instanceof Error?error.message:'Could not cancel the experiment.');} finally { setCancelling(false); }
   };
 
   return (
     <div>
-      <Link to="/experiments" className="text-sm text-[var(--color-primary-600)] hover:underline mb-4 inline-block">← Back to Experiments</Link>
+      <Link to="/experiments" className="text-sm text-[var(--color-primary-600)] hover:underline mb-4 inline-block">Back to experiments</Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">{experiment.name}</h1>
-          <p className="text-sm text-[var(--color-text-secondary)] mt-1">{methodLabel(experiment)}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`badge text-sm ${statusBadge(experiment.status)}`}>
-            {experiment.status === 'running' && <span className="status-dot status-dot-running mr-1.5" />}
-            {experiment.status}
-          </span>
-          {active && <button onClick={cancel} disabled={cancelling} className="btn-secondary text-xs">Cancel</button>}
-          {experiment.status === 'completed' && (
-            <>
-              <button onClick={exportCsv} className="btn-secondary text-xs">Export CSV</button>
-              <button onClick={exportJson} className="btn-secondary text-xs">Export JSON</button>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader eyebrow="Research / Experiment evidence" title={experiment.name} description={methodLabel(experiment)} actions={<><span className={`badge ${statusBadge(experiment.status)}`}>{experiment.status}</span>{experiment.status==='queued'&&<button onClick={cancel} disabled={cancelling} className="btn-secondary">{cancelling?'Cancelling…':'Cancel run'}</button>}{experiment.status==='completed'&&<><button onClick={exportCsv} className="btn-secondary"><Icon name="download" size={15}/>Round CSV</button><button onClick={exportJson} className="btn-secondary">Export JSON</button></>}</>} />
+      <div className="segmented mb-7" aria-label="Experiment sections"><button onClick={()=>setTab('summary')} aria-pressed={tab==='summary'}>Results & configuration</button><button onClick={()=>setTab('rounds')} aria-pressed={tab==='rounds'} disabled={!rounds.length}>Round evidence</button><button onClick={()=>setTab('clients')} aria-pressed={tab==='clients'} disabled={!clients.length}>Hospital distribution</button></div>
+      {actionError&&<div className="form-feedback" role="alert">{actionError}</div>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <div className="card">
-          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Configuration</h2>
-          <dl className="space-y-2 text-sm">
-            {[
-              ['Method', methodLabel(experiment)],
-              ...(isFederated ? [
-                ['Clients', experiment.numClients],
-                ['Rounds', experiment.numRounds],
-                ['Local epochs', experiment.localEpochs],
-                ['Learning rate', experiment.learningRate],
-                ['Batch size', experiment.batchSize],
-              ] : []),
-              ['Random seed', experiment.randomSeed],
-              ['Test size', experiment.testSize],
-              ...(experiment.differentialPrivacy ? [
-                ['DP ε per round', experiment.dpConfig?.epsilon],
-                ['DP δ per round', experiment.dpConfig?.delta],
-                ['DP clip norm', experiment.dpConfig?.clipNorm],
-              ] : [['Differential privacy', 'Off']]),
-            ].map(([k, v]) => (
-              <div key={String(k)} className="flex justify-between">
-                <dt className="text-[var(--color-text-secondary)]">{k}</dt>
-                <dd className="font-medium">{String(v)}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        <div className="card">
-          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Run</h2>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Created</dt><dd>{new Date(experiment.createdAt).toLocaleString()}</dd></div>
-            {experiment.completedAt && <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Finished</dt><dd>{new Date(experiment.completedAt).toLocaleString()}</dd></div>}
-            {experiment.durationSeconds != null && <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Duration</dt><dd className="font-medium">{experiment.durationSeconds.toFixed(2)}s</dd></div>}
-            {m?.num_train_samples != null && <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Train / test samples</dt><dd className="font-medium">{m.num_train_samples} / {m.num_test_samples}</dd></div>}
-            {m?.total_communication_bytes != null && isFederated && !isLocal && (
-              <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Communication</dt><dd className="font-medium">{(m.total_communication_bytes / 1024).toFixed(1)} KB</dd></div>
-            )}
-            {experiment.modelId ? (
-              <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Model</dt><dd><Link to="/models" className="font-mono text-xs text-[var(--color-primary-600)] hover:underline">{experiment.modelId}</Link></dd></div>
-            ) : isLocal && experiment.status === 'completed' ? (
-              <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Model</dt><dd className="text-xs text-[var(--color-text-muted)]">None (no shared model in local-only)</dd></div>
-            ) : null}
-          </dl>
-        </div>
-      </div>
-
-      {experiment.errorMessage && (
-        <div className="card mb-6 border-[var(--color-error)]/30 bg-red-50">
-          <h2 className="text-sm font-semibold text-[var(--color-error)] mb-2">Error</h2>
-          <p className="text-sm text-red-700">{experiment.errorMessage}</p>
-        </div>
-      )}
-
-      {active && (
-        <div className="card mb-6 text-center py-8 text-[var(--color-text-secondary)]">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-primary-600)] mx-auto mb-3"></div>
-          Training in progress…
-        </div>
-      )}
-
-      {m && (
+      {m && tab === 'summary' && (
         <div className="card mb-6">
           <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Test-set metrics</h2>
+          <p className="text-xs text-[var(--color-text-muted)] mb-3">{optimized ? 'Development-only cross-validation selects the configuration; the selected model is refit on development records and scored on the separate final test set. CV selection scores are not independent test scores.' : hasValidation ? 'Final test evaluation after training. Per-round charts use a separate validation split.' : 'Legacy two-way split: test was monitored each round. Re-run to use separate validation and final test sets.'}</p>
           {isLocal && <p className="text-xs text-[var(--color-text-muted)] mb-3">Mean ± std across clients, each evaluated on the shared test set.</p>}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 my-4">
             {[
@@ -229,6 +161,7 @@ export default function ExperimentDetailPage() {
                   <div className="flex justify-between gap-6"><dt className="text-[var(--color-text-secondary)]">Total δ</dt><dd className="font-medium">{Number(m.privacy.cumulative_delta).toExponential(1)}</dd></div>
                   <div className="flex justify-between gap-6"><dt className="text-[var(--color-text-secondary)]">Noise σ per update</dt><dd className="font-medium">{num(m.privacy.noise_sigma, 3)}</dd></div>
                   <p className="text-xs text-[var(--color-text-muted)] pt-1">{m.privacy.accounting}</p>
+                  <p className="text-xs text-[var(--color-text-muted)] max-w-sm">Educational clipping and seeded noise; pooled preprocessing and diagnostics are not protected by a certified privacy guarantee.</p>
                 </dl>
               </div>
             )}
@@ -236,10 +169,87 @@ export default function ExperimentDetailPage() {
         </div>
       )}
 
-      {roundSeries.length > 1 && (
+      {tab === 'summary' && <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="card">
+          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Configuration</h2>
+          <dl className="space-y-2 text-sm">
+            {[
+              ['Method', methodLabel(experiment)],
+              ...(optimized ? [['Selected predictor', m.optimization.selected.estimator ?? m.optimization.selected.features], ['Selection goal', m.optimization.objective ?? 'accuracy']] : []),
+              ...(isFederated ? [
+                ['Clients', experiment.numClients],
+                ['Rounds', experiment.numRounds],
+                ['Local epochs', experiment.localEpochs],
+                ['Learning rate', experiment.learningRate],
+                ['Batch size', experiment.batchSize],
+              ] : []),
+              ['Random seed', experiment.randomSeed],
+              ['Test size', experiment.testSize],
+              ...(experiment.differentialPrivacy ? [
+                ['DP ε per round', experiment.dpConfig?.epsilon],
+                ['DP δ per round', experiment.dpConfig?.delta],
+                ['DP clip norm', experiment.dpConfig?.clipNorm],
+              ] : [['Differential privacy', 'Off']]),
+            ].map(([k, v]) => (
+              <div key={String(k)} className="flex justify-between">
+                <dt className="text-[var(--color-text-secondary)]">{k}</dt>
+                <dd className="font-medium">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="card">
+          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Run</h2>
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Created</dt><dd>{new Date(experiment.createdAt).toLocaleString()}</dd></div>
+            {experiment.completedAt && <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Finished</dt><dd>{new Date(experiment.completedAt).toLocaleString()}</dd></div>}
+            {experiment.durationSeconds != null && <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Duration</dt><dd className="font-medium">{experiment.durationSeconds.toFixed(2)}s</dd></div>}
+            {m?.num_train_samples != null && <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">{optimized?'Development / holdout validation / test':'Train / validation / test'}</dt><dd className="font-medium">{m.num_train_samples} / {m.num_validation_samples ?? '—'} / {m.num_test_samples}</dd></div>}
+            {m?.total_communication_bytes != null && isFederated && !isLocal && (
+              <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Communication</dt><dd className="font-medium">{(m.total_communication_bytes / 1024).toFixed(1)} KB</dd></div>
+            )}
+            {experiment.modelId ? (
+              <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Model</dt><dd><Link to="/models" className="font-mono text-xs text-[var(--color-primary-600)] hover:underline">{experiment.modelId}</Link></dd></div>
+            ) : isLocal && experiment.status === 'completed' ? (
+              <div className="flex justify-between"><dt className="text-[var(--color-text-secondary)]">Model</dt><dd className="text-xs text-[var(--color-text-muted)]">None (no shared model in local-only)</dd></div>
+            ) : null}
+          </dl>
+        </div>
+      </div>}
+
+      {experiment.errorMessage && (
+        <div className="card mb-6 border-[var(--color-error)]/30 bg-red-50">
+          <h2 className="text-sm font-semibold text-[var(--color-error)] mb-2">Error</h2>
+          <p className="text-sm text-red-700">{experiment.errorMessage}</p>
+        </div>
+      )}
+
+      {active && (
+        <div className="card mb-6 text-center py-8 text-[var(--color-text-secondary)]">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-primary-600)] mx-auto mb-3"></div>
+          Training is in progress. Recorded round evidence will be available when the run completes.
+        </div>
+      )}
+
+
+      {tab === 'rounds' && experiment.trainingMethod === 'fedavg' && experiment.status === 'completed' && (
+        <FederationRoundInspector rounds={rounds} />
+      )}
+
+      {tab === 'summary' && m?.evaluation_manifest && (
+        <details className="card mb-6 text-sm">
+          <summary className="cursor-pointer font-semibold">Reproducibility: evaluation split manifest</summary>
+          <p className="text-xs text-[var(--color-text-muted)] mt-3">Compare these counts and SHA-256 hashes across methods with the same dataset and seed. Preprocessing fits only training rows. Hashes describe positional split membership, not patient records.</p>
+          <pre className="overflow-x-auto bg-[var(--color-surface-secondary)] rounded-lg p-3 mt-3 text-xs">{JSON.stringify(m.evaluation_manifest, null, 2)}</pre>
+        </details>
+      )}
+
+      {tab === 'rounds' && experiment.trainingMethod === 'centralized' && <div className="card mb-6"><h2 className="font-semibold mb-2">A single centralized fit</h2><p className="text-sm text-[var(--color-text-secondary)]">This baseline trains once on pooled training records. It has no hospital updates or FedAvg aggregation rounds to inspect.</p></div>}
+      {tab === 'rounds' && roundSeries.length > 1 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
           <div className="card">
-            <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Test metrics per round</h2>
+            <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">{roundSplit} metrics per round</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={roundSeries}>
@@ -248,9 +258,9 @@ export default function ExperimentDetailPage() {
                   <YAxis domain={[0, 1]} fontSize={12} />
                   <Tooltip formatter={(v: number) => v?.toFixed(4)} />
                   <Legend />
-                  <Line type="monotone" dataKey="accuracy" name="Accuracy" stroke="#2563eb" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="f1" name="F1" stroke="#14b8a6" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="auc" name="ROC-AUC" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="accuracy" name="Accuracy" stroke="#3d6c63" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="f1" name="F1" stroke="#899d92" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="auc" name="ROC-AUC" stroke="#a28c61" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -265,7 +275,7 @@ export default function ExperimentDetailPage() {
                   <YAxis fontSize={12} domain={['auto', 'auto']} />
                   <Tooltip formatter={(v: number) => v?.toFixed(4)} />
                   <Legend />
-                  <Line type="monotone" dataKey="loss" name="Test loss" stroke="#ef4444" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="loss" name={`${roundSplit} loss`} stroke="#94756d" strokeWidth={2} dot={false} />
                   {!isLocal && <Line type="monotone" dataKey="trainLoss" name="Train loss" stroke="#8b5cf6" strokeWidth={2} dot={false} />}
                 </LineChart>
               </ResponsiveContainer>
@@ -274,7 +284,7 @@ export default function ExperimentDetailPage() {
         </div>
       )}
 
-      {clients.length > 0 && (
+      {tab === 'clients' && clients.length > 0 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
           <div className="card">
             <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Client data distribution</h2>
@@ -287,8 +297,8 @@ export default function ExperimentDetailPage() {
                   <YAxis fontSize={12} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="No diabetes" stackId="a" fill="#14b8a6" />
-                  <Bar dataKey="Diabetes" stackId="a" fill="#ef4444" />
+                  <Bar dataKey="No diabetes" stackId="a" fill="#899d92" />
+                  <Bar dataKey="Diabetes" stackId="a" fill="#94756d" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -304,8 +314,8 @@ export default function ExperimentDetailPage() {
                     <th className="py-2 px-2 font-medium">% diabetic</th>
                     {isLocal ? (
                       <>
-                        <th className="py-2 px-2 font-medium">Test acc.</th>
-                        <th className="py-2 px-2 font-medium">Test F1</th>
+                        <th className="py-2 px-2 font-medium">{roundSplit} acc.</th>
+                        <th className="py-2 px-2 font-medium">{roundSplit} F1</th>
                       </>
                     ) : (
                       <>
@@ -323,8 +333,8 @@ export default function ExperimentDetailPage() {
                       <td className="py-2 px-2">{pct((c.class_distribution?.['1'] ?? 0) / Math.max(c.num_samples, 1))}</td>
                       {isLocal ? (
                         <>
-                          <td className="py-2 px-2">{pct(c.test_accuracy)}</td>
-                          <td className="py-2 px-2">{num(c.test_f1_score, 3)}</td>
+                          <td className="py-2 px-2">{pct(c.validation_accuracy ?? c.test_accuracy)}</td>
+                          <td className="py-2 px-2">{num(c.validation_f1_score ?? c.test_f1_score, 3)}</td>
                         </>
                       ) : (
                         <>

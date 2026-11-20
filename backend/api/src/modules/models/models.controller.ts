@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, ParseUUIDPipe, Query, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
 import { ModelsService } from './models.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
@@ -10,7 +10,7 @@ import { ModelStatus } from './entities/ml-model.entity';
 @ApiTags('Models')
 @Controller('models')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
+@ApiCookieAuth()
 export class ModelsController {
   constructor(private readonly modelsService: ModelsService) {}
 

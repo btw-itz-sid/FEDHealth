@@ -5,6 +5,7 @@ import { UserRole } from '../../users/entities/user.entity';
 export class RegisterDto {
   @ApiProperty({ example: 'patient@fedhealth.dev' })
   @IsEmail()
+  @MaxLength(254)
   email: string;
 
   @ApiProperty({ example: 'SecurePass123!' })
@@ -26,13 +27,13 @@ export class RegisterDto {
   lastName: string;
 
   @ApiPropertyOptional({
-    enum: [UserRole.PATIENT, UserRole.RESEARCHER],
+    enum: [UserRole.PATIENT],
     default: UserRole.PATIENT,
-    description: 'Admin accounts cannot be self-registered',
+    description: 'Research and admin access requires administrator approval',
   })
   @IsOptional()
-  @IsIn([UserRole.PATIENT, UserRole.RESEARCHER], {
-    message: 'role must be patient or researcher',
+  @IsIn([UserRole.PATIENT], {
+    message: 'Research access must be granted by an administrator',
   })
   role?: UserRole;
 }
@@ -52,6 +53,7 @@ export class ChangePasswordDto {
 export class LoginDto {
   @ApiProperty({ example: 'patient@fedhealth.dev' })
   @IsEmail()
+  @MaxLength(254)
   email: string;
 
   @ApiProperty({ example: 'SecurePass123!' })

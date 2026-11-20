@@ -1,259 +1,60 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/lib/api';
-import { methodLabel, riskColor } from '@/lib/format';
-import ArchitectureDiagram from '@/components/ArchitectureDiagram';
-import QuickStartGuide from '@/components/QuickStartGuide';
+import { modelMethodLabel, pct } from '@/lib/format';
+import Icon from '@/components/ui/Icon';
+import PageHeader from '@/components/ui/PageHeader';
+
+
+interface Model { modelId: string; modelVersion: string; isActive: boolean; trainingMethod: string; experimentId?: string; metrics?: { accuracy?: number; recall?: number; roc_auc?: number; num_train_samples?: number; num_test_samples?: number; optimization?: {selected?: {estimator?: string}}; evaluation_protocol?: string } }
+interface Prediction { id: string; riskLevel: string; probability: number; createdAt: string; trainingMethod: string }
 
 export default function OverviewPage() {
   const { user } = useAuth();
-  const [experiments, setExperiments] = useState<any>(null);
-  const [predictions, setPredictions] = useState<any>(null);
+  const researcher = user?.role === 'researcher' || user?.role === 'admin';
+
+  const [experimentTotal, setExperimentTotal] = useState(0);
+  const [datasetCount, setDatasetCount] = useState(0);
+  const [activeModel, setActiveModel] = useState<Model | null>(null);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [predictionTotal, setPredictionTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (user?.role === 'researcher' || user?.role === 'admin') {
-      api.getExperiments(1, 5)
-        .then(setExperiments)
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    } else if (user?.role === 'patient') {
-      api.getPredictions(1, 1)
-        .then(setPredictions)
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+    let current = true; setLoading(true); setError('');
+    const load = async () => {
+      try {
+        if (researcher) {
+          const [exps, datasets, models] = await Promise.all([api.getExperiments(1, 100), api.getDatasets(1, 100), api.getModels(1, 100)]);
+          if (!current) return;
+          setExperimentTotal(exps.total ?? 0);
+          setDatasetCount((datasets.items ?? []).filter((d: { status: string }) => d.status === 'valid').length);
+          setActiveModel((models.items ?? []).find((m: Model) => m.isActive) ?? null);
+        } else {
+          const result = await api.getPredictions(1, 5); if (!current) return;
+          setPredictions(result.items ?? []); setPredictionTotal(result.total ?? 0);
+        }
+      } catch (error) { if (current) setError(error instanceof Error ? error.message : 'Workspace data could not be loaded.'); }
+      finally { if (current) setLoading(false); }
+    }; load(); return () => { current = false; };
+  }, [researcher, retry]);
 
-  const latest = predictions?.items?.[0];
-
-  const statusCounts = experiments?.items?.reduce(
-    (acc: any, exp: any) => {
-      acc[exp.status] = (acc[exp.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
-  ) || {};
-
-  return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
-          Welcome, {user?.firstName}
-        </h1>
-        <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-          FedHealth — Privacy-Preserving Diabetes Research Platform
-        </p>
-      </div>
-
-      {/* ─── Architecture Diagram — always visible for researchers ─── */}
-      {(user?.role === 'researcher' || user?.role === 'admin') && (
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 mb-8">
-          {/* Left: architecture diagram (3 cols on xl) */}
-          <div className="xl:col-span-3 card">
-            <ArchitectureDiagram walkthroughHref="/how-it-works" />
-          </div>
-
-          {/* Right: quick stats + quick actions (2 cols on xl) */}
-          <div className="xl:col-span-2 space-y-4">
-            {/* Stat cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="stat-card card">
-                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Total Experiments</p>
-                <p className="text-2xl font-bold text-[var(--color-text-primary)]">
-                  {loading ? '—' : experiments?.total || 0}
-                </p>
-              </div>
-              <div className="stat-card card">
-                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Completed</p>
-                <p className="text-2xl font-bold text-[var(--color-success)]">
-                  {loading ? '—' : statusCounts.completed || 0}
-                </p>
-              </div>
-              <div className="stat-card card">
-                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Running</p>
-                <p className="text-2xl font-bold text-[var(--color-warning)]">
-                  {loading ? '—' : statusCounts.running || 0}
-                </p>
-              </div>
-              <div className="stat-card card">
-                <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Failed</p>
-                <p className="text-2xl font-bold text-[var(--color-error)]">
-                  {loading ? '—' : statusCounts.failed || 0}
-                </p>
-              </div>
-            </div>
-
-            {/* Pipeline summary card */}
-            <div className="card">
-              <h3 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Data Pipeline</h3>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--color-primary-100)]">
-                    <span className="text-sm">📁</span>
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Source Dataset</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">PIMA Indians Diabetes (768 records, 8 features)</p>
-                  </div>
-                  <Link to="/datasets" className="text-xs text-[var(--color-primary-600)] hover:underline flex-shrink-0">View →</Link>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--color-teal-50)]">
-                    <span className="text-sm">🔀</span>
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Data Split</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">80% train (partitioned to nodes) · 20% test (held out)</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50">
-                    <span className="text-sm">🔬</span>
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Training Methods</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">Centralized · FedAvg (IID / Non-IID) · Local Only · + DP</p>
-                  </div>
-                  <Link to="/experiments" className="text-xs text-[var(--color-primary-600)] hover:underline flex-shrink-0">Run →</Link>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-surface-secondary)]">
-                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50">
-                    <span className="text-sm">📊</span>
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Evaluation</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">Accuracy · F1 · ROC-AUC · Confusion Matrix · Privacy ε</p>
-                  </div>
-                  <Link to="/compare" className="text-xs text-[var(--color-primary-600)] hover:underline flex-shrink-0">Compare →</Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Demo Walkthrough */}
-      {(user?.role === 'researcher' || user?.role === 'admin') && (
-        <div className="mb-8">
-          <QuickStartGuide />
-        </div>
-      )}
-
-      {/* Recent experiments */}
-      {(user?.role === 'researcher' || user?.role === 'admin') && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Recent Experiments</h2>
-            <Link to="/experiments" className="text-sm text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)] font-medium">
-              View all →
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-primary-600)]"></div>
-            </div>
-          ) : experiments?.items?.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--color-border)]">
-                    <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Name</th>
-                    <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Method</th>
-                    <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Status</th>
-                    <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Accuracy</th>
-                    <th className="text-left py-3 px-2 font-medium text-[var(--color-text-muted)]">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {experiments.items.map((exp: any) => (
-                    <tr key={exp.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-secondary)] transition-colors">
-                      <td className="py-3 px-2">
-                        <Link to={`/experiments/${exp.id}`} className="font-medium text-[var(--color-primary-600)] hover:text-[var(--color-primary-700)]">
-                          {exp.name}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-2">{methodLabel(exp)}</td>
-                      <td className="py-3 px-2">
-                        <span className={`badge ${
-                          exp.status === 'completed' ? 'badge-success' :
-                          exp.status === 'running' ? 'badge-warning' :
-                          exp.status === 'failed' ? 'badge-error' :
-                          exp.status === 'queued' ? 'badge-info' : 'badge-neutral'
-                        }`}>
-                          {exp.status === 'running' && <span className="status-dot status-dot-running mr-1.5" />}
-                          {exp.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2">
-                        {exp.finalMetrics?.accuracy != null
-                          ? `${(exp.finalMetrics.accuracy * 100).toFixed(1)}%`
-                          : '—'}
-                      </td>
-                      <td className="py-3 px-2 text-[var(--color-text-muted)]">
-                        {new Date(exp.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-[var(--color-text-muted)] mb-3">No experiments yet</p>
-              <Link to="/experiments" className="inline-flex px-4 py-2 rounded-lg bg-[var(--color-primary-600)] text-white text-sm font-medium hover:bg-[var(--color-primary-700)] transition-colors">
-                Create First Experiment
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Patient view */}
-      {user?.role === 'patient' && (
-        <div>
-          {/* Show simplified architecture for patients too */}
-          <div className="card mb-6">
-            <ArchitectureDiagram />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="stat-card card">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Latest result</p>
-              {latest ? (
-                <>
-                  <p className="text-2xl font-bold" style={{ color: riskColor(latest.riskLevel) }}>{latest.riskLevel} risk</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    {(latest.probability * 100).toFixed(1)}% · {new Date(latest.createdAt).toLocaleDateString()}
-                  </p>
-                </>
-              ) : (
-                <p className="text-2xl font-bold text-[var(--color-text-muted)]">{loading ? '—' : 'None yet'}</p>
-              )}
-            </div>
-            <div className="stat-card card">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Assessments</p>
-              <p className="text-2xl font-bold">{loading ? '—' : predictions?.total || 0}</p>
-              <Link to="/history" className="text-xs text-[var(--color-primary-600)] hover:underline">View history →</Link>
-            </div>
-            <div className="card flex flex-col justify-center items-start">
-              <p className="text-sm text-[var(--color-text-secondary)] mb-3">Check your diabetes risk with 8 routine health measurements.</p>
-              <Link to="/assess" className="btn-primary">Start new assessment</Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Disclaimer */}
-      <div className="mt-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
-        <strong>Research Platform Disclaimer:</strong> FedHealth is an educational and research platform.
-        All predictions are research estimates and must not be used for clinical diagnosis.
-        Consult a qualified healthcare professional for medical advice.
-      </div>
-    </div>
-  );
+  const latest = predictions[0];
+  const display = (value: string | number) => loading || error ? '—' : value;
+  return <div>
+    <PageHeader eyebrow={researcher ? 'Research workspace' : 'Your personal workspace'} title={researcher ? 'Your research workspace' : `Welcome, ${user?.firstName ?? ''}.`} description={researcher ? 'Train a model, check the results, and try an assessment.' : 'Make a research assessment, understand the result, and keep your history in one place.'} actions={<Link className="btn-primary" to={researcher ? '/experiments?new=1' : '/assess'}><Icon name="plus" size={17} />{researcher ? 'Train model' : 'New assessment'}</Link>} />
+    {error && <div className="form-feedback flex items-center justify-between gap-3" role="alert">{error}<button onClick={() => setRetry((n) => n + 1)} className="btn-secondary">Try again</button></div>}
+    {researcher ? <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">{[
+        {number:'01',title:'Train a model',text:'Choose federated learning or compare prediction models. Select a validated dataset to get started.',to:'/experiments',icon:'flask' as const},
+        {number:'02',title:'See the results',text:'Read the test score and understand what the model gets right or misses.',to:'/compare',icon:'chart' as const},
+        {number:'03',title:'Try an assessment',text:'Use a sample or enter measurements. Save the result with its model version.',to:'/assess',icon:'pulse' as const},
+      ].map(step=><Link className="card workflow-simple" to={step.to} key={step.number}><span className="text-xs text-[var(--color-text-muted)]">{step.number}</span><Icon name={step.icon} size={23}/><h2 className="text-lg font-medium">{step.title}</h2><p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">{step.text}</p></Link>)}</div>
+      <div className="patient-overview"><section className="card"><div className="section-heading"><div><h2>Model used for assessments</h2><p>The active model generates every new estimate.</p></div><Icon name="layers" size={21}/></div>{loading?<p role="status" className="text-sm">Loading the current model-</p>:activeModel?<><span className="badge badge-neutral">{modelMethodLabel(activeModel.trainingMethod)}{activeModel.metrics?.optimization?.selected?.estimator?' - '+activeModel.metrics.optimization.selected.estimator.replace(/Classifier$/,'').replace(/([a-z])([A-Z])/g,'$1 $2'):''}</span><div className="grid grid-cols-3 gap-4 my-7"><div><p className="text-xs text-[var(--color-text-muted)]">Test accuracy</p><p className="text-3xl mt-2">{pct(activeModel.metrics?.accuracy)}</p></div><div><p className="text-xs text-[var(--color-text-muted)]">Recall</p><p className="text-3xl mt-2">{pct(activeModel.metrics?.recall)}</p></div><div><p className="text-xs text-[var(--color-text-muted)]">Test records</p><p className="text-3xl mt-2">{activeModel.metrics?.num_test_samples??'-'}</p></div></div><p className="text-xs font-mono text-[var(--color-text-muted)] break-all mb-5">Version {activeModel.modelVersion}</p><div className="flex flex-wrap gap-3"><Link to="/assess" className="btn-primary">Try this model</Link><Link to="/experiments?new=1&goal=prediction" className="btn-secondary">Train an improved predictor</Link></div></>:<p className="text-sm">Train a model and select it in the model registry to enable assessments.</p>}</section><section className="card"><Icon name="play" size={24}/><h2 className="text-xl font-medium mt-5">Start with reliable data.</h2><p className="text-sm text-[var(--color-text-secondary)] my-4 leading-relaxed">Upload a labeled CSV, review its validation, then select it when starting a training run. Your data needs eight measurements and an Outcome label for each record.</p><Link to="/datasets" className="btn-secondary">Review training data</Link><p className="text-xs text-[var(--color-text-muted)] mt-5 leading-relaxed">The prediction baseline uses centralized training and is labeled separately from the federated experiment.</p></section></div>
+      <p className="text-sm text-[var(--color-text-muted)] mt-6">{loading?'Loading research history-':`${experimentTotal} saved training runs - ${datasetCount} validated dataset${datasetCount===1?'':'s'}`}. Detailed experiments and model controls are under Advanced tools.</p>
+    </> : <><div className="metric-strip" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}><div className="metric-item"><p className="metric-label">Your assessments</p><p className="metric-value">{display(predictionTotal)}</p><p className="metric-note">Saved privately to your account</p></div><div className="metric-item"><p className="metric-label">Latest research estimate</p><p className="metric-value">{display(latest ? pct(latest.probability) : 'None yet')}</p><p className="metric-note">{latest ? `${latest.riskLevel} risk · ${new Date(latest.createdAt).toLocaleDateString()}` : 'Complete an assessment to see a result'}</p></div></div><div className="patient-overview"><section className="card"><Icon name="pulse" size={27} /><h2 className="text-xl font-medium mt-5">Understand your measurements.</h2><p className="text-sm text-[var(--color-text-secondary)] my-4 leading-relaxed">Enter eight measurements for a research estimate. You’ll see which model produced it, and every result stays in your history.</p><Link to="/assess" className="btn-primary">Start an assessment</Link></section><section className="card"><div className="section-heading"><h2>Recent assessments</h2><Link to="/history" className="section-link">View history</Link></div>{predictions.length ? predictions.map((p) => <div className="small-definition" key={p.id}><span>{new Date(p.createdAt).toLocaleDateString()}</span><span>{p.riskLevel} · {pct(p.probability)}</span></div>) : <p className="text-sm text-[var(--color-text-muted)]">Your assessment history will appear here.</p>}</section></div></>}
+    <div className="research-note"><Icon name="info" size={15} /><p>Research simulation using public data. Hospital clients share one process; predictions are research estimates and have no established clinical validity.</p></div>
+  </div>;
 }

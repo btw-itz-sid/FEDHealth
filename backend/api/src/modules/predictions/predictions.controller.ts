@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Param, Body, Query, UseGuards, Req, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiCookieAuth, ApiQuery } from '@nestjs/swagger';
 import { PredictionsService } from './predictions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreatePredictionDto } from './dto/prediction.dto';
@@ -8,7 +8,7 @@ import { Request } from 'express';
 @ApiTags('Predictions')
 @Controller('predictions')
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiCookieAuth()
 export class PredictionsController {
   constructor(private readonly predictionsService: PredictionsService) {}
 

@@ -1,0 +1,283 @@
+{
+  "model_id": "fedavg_20261120_123945_a20bba",
+  "training_config": {
+    "training_method": "fedavg",
+    "partition_type": "iid",
+    "dirichlet_alpha": null,
+    "num_clients": 5,
+    "num_rounds": 40,
+    "local_epochs": 5,
+    "learning_rate": 0.05,
+    "batch_size": 32,
+    "random_seed": 42,
+    "test_size": 0.2,
+    "dp_enabled": false,
+    "dp_epsilon": null,
+    "dp_delta": null,
+    "dp_clip_norm": null,
+    "balance_classes": false,
+    "evaluation_protocol": "development_cv3_fedavg_v3",
+    "optimize": true,
+    "decision_threshold": 0.5,
+    "feature_map": "linear",
+    "l2_penalty": 0.0001,
+    "validation_fraction_of_development": 0,
+    "preprocessing_scope": "pooled_training_split_simulation"
+  },
+  "metrics": {
+    "accuracy": 0.694805,
+    "precision": 0.574468,
+    "recall": 0.5,
+    "f1_score": 0.534653,
+    "confusion_matrix": [
+      [
+        80,
+        20
+      ],
+      [
+        27,
+        27
+      ]
+    ],
+    "roc_auc": 0.811667,
+    "per_class": {
+      "0": {
+        "precision": 0.747664,
+        "recall": 0.8,
+        "f1_score": 0.772947,
+        "support": 100
+      },
+      "1": {
+        "precision": 0.574468,
+        "recall": 0.5,
+        "f1_score": 0.534653,
+        "support": 54
+      }
+    },
+    "loss": 0.5136,
+    "global_model": {
+      "weights": {
+        "Pregnancies": 0.361168,
+        "Glucose": 1.155462,
+        "BloodPressure": -0.031943,
+        "SkinThickness": 0.051592,
+        "Insulin": -0.043605,
+        "BMI": 0.656199,
+        "DiabetesPedigreeFunction": 0.232315,
+        "Age": 0.155197
+      },
+      "bias": -0.859491,
+      "bytes_per_transfer": 72
+    },
+    "num_train_samples": 614,
+    "num_validation_samples": 0,
+    "num_test_samples": 154,
+    "evaluation_protocol": "development_cv3_fedavg_v3",
+    "evaluation_manifest": {
+      "protocol": "development_cv3_fedavg_v3",
+      "validation_fraction_of_development": 0,
+      "round_metrics_split": "train",
+      "final_metrics_split": "test",
+      "preprocessing_fit_split": "train",
+      "splits": {
+        "train": {
+          "count": 614,
+          "indices_sha256": "beca94d1e9c31a3fba0bd4979e601e1fe85d0461edf0453e1bc5ac3901c89612"
+        },
+        "validation": {
+          "count": 0,
+          "indices_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "test": {
+          "count": 154,
+          "indices_sha256": "6f1e42657bd8da9155db9b91d377375a188123e004664bf97950138d73a494a2"
+        }
+      },
+      "selection": "3-fold CV within development; refit on development"
+    },
+    "validation_metrics": {
+      "accuracy": 0.794788,
+      "evaluation_split": "development_cv3_selection",
+      "selection_estimate_only": true
+    },
+    "optimization": {
+      "protocol": "development_cv3_fedavg_v3",
+      "selection_split": "development_only_cv3",
+      "objective": "accuracy",
+      "test_used_for_selection": false,
+      "selected": {
+        "features": "linear",
+        "gamma": null,
+        "balanced": false,
+        "decision_threshold": 0.5
+      },
+      "candidates": [
+        {
+          "features": "linear",
+          "gamma": null,
+          "balanced": false,
+          "folds": [
+            {
+              "accuracy": 0.8390243902439024,
+              "recall": 0.6944444444444444,
+              "roc_auc": 0.8953634085213034
+            },
+            {
+              "accuracy": 0.7463414634146341,
+              "recall": 0.5352112676056338,
+              "roc_auc": 0.7990330039941139
+            },
+            {
+              "accuracy": 0.7990196078431373,
+              "recall": 0.5774647887323944,
+              "roc_auc": 0.8467647993222492
+            }
+          ],
+          "decision_threshold": 0.5,
+          "selection_accuracy": 0.794788,
+          "mean_accuracy": 0.794795,
+          "mean_recall": 0.602374,
+          "mean_roc_auc": 0.847054
+        },
+        {
+          "features": "linear",
+          "gamma": null,
+          "balanced": true,
+          "folds": [
+            {
+              "accuracy": 0.8097560975609757,
+              "recall": 0.8194444444444444,
+              "roc_auc": 0.8957811194653299
+            },
+            {
+              "accuracy": 0.7414634146341463,
+              "recall": 0.6338028169014085,
+              "roc_auc": 0.7995585453016607
+            },
+            {
+              "accuracy": 0.75,
+              "recall": 0.6901408450704225,
+              "roc_auc": 0.8492004659536164
+            }
+          ],
+          "decision_threshold": 0.6,
+          "selection_accuracy": 0.791531,
+          "mean_accuracy": 0.767073,
+          "mean_recall": 0.714463,
+          "mean_roc_auc": 0.84818
+        },
+        {
+          "features": "rbf",
+          "gamma": 0.05,
+          "balanced": false,
+          "folds": [
+            {
+              "accuracy": 0.8146341463414634,
+              "recall": 0.7222222222222222,
+              "roc_auc": 0.884920634920635
+            },
+            {
+              "accuracy": 0.7609756097560976,
+              "recall": 0.5633802816901409,
+              "roc_auc": 0.799348328778642
+            },
+            {
+              "accuracy": 0.7990196078431373,
+              "recall": 0.6197183098591549,
+              "roc_auc": 0.8437996399449328
+            }
+          ],
+          "decision_threshold": 0.5,
+          "selection_accuracy": 0.791531,
+          "mean_accuracy": 0.791543,
+          "mean_recall": 0.635107,
+          "mean_roc_auc": 0.84269
+        },
+        {
+          "features": "rbf",
+          "gamma": 0.05,
+          "balanced": true,
+          "folds": [
+            {
+              "accuracy": 0.7853658536585366,
+              "recall": 0.8472222222222222,
+              "roc_auc": 0.8864870509607352
+            },
+            {
+              "accuracy": 0.7317073170731707,
+              "recall": 0.6197183098591549,
+              "roc_auc": 0.8016607105318478
+            },
+            {
+              "accuracy": 0.75,
+              "recall": 0.6901408450704225,
+              "roc_auc": 0.8477178862649583
+            }
+          ],
+          "decision_threshold": 0.65,
+          "selection_accuracy": 0.788274,
+          "mean_accuracy": 0.755691,
+          "mean_recall": 0.719027,
+          "mean_roc_auc": 0.845289
+        },
+        {
+          "features": "rbf",
+          "gamma": 0.2,
+          "balanced": false,
+          "folds": [
+            {
+              "accuracy": 0.8195121951219512,
+              "recall": 0.7222222222222222,
+              "roc_auc": 0.8732247284878865
+            },
+            {
+              "accuracy": 0.7121951219512195,
+              "recall": 0.5211267605633803,
+              "roc_auc": 0.7897834769812906
+            },
+            {
+              "accuracy": 0.7843137254901961,
+              "recall": 0.6197183098591549,
+              "roc_auc": 0.8364926400508312
+            }
+          ],
+          "decision_threshold": 0.5,
+          "selection_accuracy": 0.771987,
+          "mean_accuracy": 0.772007,
+          "mean_recall": 0.621022,
+          "mean_roc_auc": 0.833167
+        },
+        {
+          "features": "rbf",
+          "gamma": 0.2,
+          "balanced": true,
+          "folds": [
+            {
+              "accuracy": 0.7804878048780488,
+              "recall": 0.8472222222222222,
+              "roc_auc": 0.8727025898078529
+            },
+            {
+              "accuracy": 0.7219512195121951,
+              "recall": 0.6338028169014085,
+              "roc_auc": 0.7927265083035526
+            },
+            {
+              "accuracy": 0.7549019607843137,
+              "recall": 0.704225352112676,
+              "roc_auc": 0.8405167849200467
+            }
+          ],
+          "decision_threshold": 0.65,
+          "selection_accuracy": 0.771987,
+          "mean_accuracy": 0.752447,
+          "mean_recall": 0.728417,
+          "mean_roc_auc": 0.835315
+        }
+      ]
+    },
+    "decision_threshold": 0.5,
+    "training_duration_seconds": 3.218,
+    "total_communication_bytes": 28800
+  }
+}

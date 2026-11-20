@@ -2,181 +2,48 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { PIMA_FEATURE_FIELDS, SAMPLE_PATIENTS } from '@/lib/pima';
-import { modelMethodLabel, riskColor } from '@/lib/format';
+import { modelMethodLabel } from '@/lib/format';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon from '@/components/ui/Icon';
 
 type Values = Record<string, string>;
-
-function validate(values: Values): Record<string, string> {
-  const errors: Record<string, string> = {};
+interface Assessment { probability: number; riskLevel: string; trainingMethod: string; modelVersion: string }
+function validate(values: Values): Record<string,string> {
+  const errors: Record<string,string> = {};
   for (const field of PIMA_FEATURE_FIELDS) {
-    const raw = values[field.name];
-    if (raw === undefined || raw.trim() === '') {
-      errors[field.name] = 'Required';
-      continue;
-    }
-    const value = Number(raw);
-    if (!Number.isFinite(value)) {
-      errors[field.name] = 'Must be a number';
-    } else if (value < field.min || value > field.max) {
-      errors[field.name] = `Must be between ${field.min} and ${field.max}`;
-    }
+    const raw=values[field.name]; const value=Number(raw);
+    if (!raw?.trim()) errors[field.name]='Enter a value.';
+    else if (!Number.isFinite(value)||value<field.min||value>field.max) errors[field.name]=`Use a number between ${field.min} and ${field.max}.`;
   }
   return errors;
 }
-
 export default function AssessPage() {
-  const [values, setValues] = useState<Values>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [result, setResult] = useState<any>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-
-  const fillSample = (sample: Record<string, number>) => {
-    setValues(Object.fromEntries(Object.entries(sample).map(([k, v]) => [k, String(v)])));
-    setErrors({});
-    setResult(null);
+  const [values,setValues]=useState<Values>({});
+  const [errors,setErrors]=useState<Record<string,string>>({});
+  const [result,setResult]=useState<Assessment|null>(null);
+  const [submitting,setSubmitting]=useState(false);
+  const [error,setError]=useState('');
+  const completed=PIMA_FEATURE_FIELDS.filter((field)=>{const raw=values[field.name];const value=Number(raw);return raw?.trim()&&Number.isFinite(value)&&value>=field.min&&value<=field.max;}).length;
+  const fillSample=(sample:Record<string,number>)=>{setValues(Object.fromEntries(Object.entries(sample).map(([key,value])=>[key,String(value)])));setErrors({});setError('');setResult(null);};
+  const submit=async(event:React.FormEvent)=>{
+    event.preventDefault();const found=validate(values);setErrors(found);setError('');
+    if(Object.keys(found).length){document.getElementById(Object.keys(found)[0])?.focus();return;}
+    setSubmitting(true);setResult(null);
+    try{setResult(await api.createPrediction(Object.fromEntries(PIMA_FEATURE_FIELDS.map((field)=>[field.name,Number(values[field.name])]))));}
+    catch(error){setError(error instanceof Error?error.message:'The assessment could not be completed.');}
+    finally{setSubmitting(false);}
   };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const found = validate(values);
-    setErrors(found);
-    if (Object.keys(found).length > 0) return;
-
-    setSubmitting(true);
-    setSubmitError('');
-    try {
-      const input = Object.fromEntries(
-        PIMA_FEATURE_FIELDS.map((f) => [f.name, Number(values[f.name])]),
-      );
-      setResult(await api.createPrediction(input));
-    } catch (err: any) {
-      setSubmitError(err.message || 'Prediction failed');
-    } finally {
-      setSubmitting(false);
-    }
+  const renderField=(name:string)=>{
+    const field=PIMA_FEATURE_FIELDS.find((item)=>item.name===name)!;
+    return <div key={name}><label htmlFor={name} className="label">{field.label}{field.unit&&<span className="text-[var(--color-text-muted)] font-normal"> · {field.unit}</span>}</label><input id={name} type="number" inputMode="decimal" min={field.min} max={field.max} step="any" value={values[name]??''} onChange={(event)=>{setValues((current)=>({...current,[name]:event.target.value}));setResult(null);setErrors((current)=>{const next={...current};delete next[name];return next;});}} className={`input ${errors[name]?'input-error':''}`} placeholder={`${field.min} – ${field.max}`} aria-invalid={!!errors[name]} aria-describedby={`${name}-hint`} disabled={submitting}/><p id={`${name}-hint`} className={`text-xs mt-2 leading-relaxed ${errors[name]?'text-[var(--color-error)]':'text-[var(--color-text-muted)]'}`}>{errors[name]??`${field.description}${field.zeroMeansUnknown?' · Use 0 when unknown.':''}`}</p></div>;
   };
-
-  const probability = result?.probability ?? 0;
-
-  return (
-    <div className="max-w-5xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Diabetes Risk Assessment</h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          Enter your health measurements to get a research estimate of diabetes risk.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <form onSubmit={handleSubmit} className="card lg:col-span-3" noValidate>
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h2 className="text-base font-semibold">Health measurements</h2>
-            <div className="flex gap-2">
-              {Object.entries(SAMPLE_PATIENTS).map(([label, sample]) => (
-                <button key={label} type="button" onClick={() => fillSample(sample)} className="btn-secondary text-xs py-1 px-2">
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {PIMA_FEATURE_FIELDS.map((field) => (
-              <div key={field.name}>
-                <label htmlFor={field.name} className="label">
-                  {field.label}
-                  {field.unit && <span className="text-[var(--color-text-muted)] font-normal"> ({field.unit})</span>}
-                </label>
-                <input
-                  id={field.name}
-                  type="number"
-                  inputMode="decimal"
-                  min={field.min}
-                  max={field.max}
-                  step={field.step}
-                  value={values[field.name] ?? ''}
-                  onChange={(e) => setValues((prev) => ({ ...prev, [field.name]: e.target.value }))}
-                  className={`input ${errors[field.name] ? 'input-error' : ''}`}
-                  placeholder={`${field.min} – ${field.max}`}
-                />
-                {errors[field.name] ? (
-                  <p className="mt-1 text-xs text-[var(--color-error)]">{errors[field.name]}</p>
-                ) : (
-                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                    {field.description}
-                    {field.zeroMeansUnknown && ' · enter 0 if unknown'}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {submitError && <div className="mt-4 p-3 rounded-lg bg-red-50 text-sm text-red-700">{submitError}</div>}
-
-          <div className="mt-6 flex gap-3">
-            <button type="submit" disabled={submitting} className="btn-primary px-6">
-              {submitting ? 'Analyzing…' : 'Get risk assessment'}
-            </button>
-            <button type="button" onClick={() => { setValues({}); setErrors({}); setResult(null); }} className="btn-secondary">
-              Clear
-            </button>
-          </div>
-        </form>
-
-        <div className="lg:col-span-2 space-y-4">
-          {result ? (
-            <div className="card">
-              <p className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Result</p>
-              <div className="flex items-baseline gap-3 mb-4">
-                <span className="text-3xl font-bold" style={{ color: riskColor(result.riskLevel) }}>
-                  {result.riskLevel} risk
-                </span>
-              </div>
-
-              <div className="mb-1 flex justify-between text-xs text-[var(--color-text-muted)]">
-                <span>Estimated probability</span>
-                <span className="font-semibold text-[var(--color-text-primary)]">{(probability * 100).toFixed(1)}%</span>
-              </div>
-              <div className="relative h-3 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500">
-                <div
-                  className="absolute -top-1 h-5 w-1.5 rounded bg-[var(--color-text-primary)] shadow"
-                  style={{ left: `calc(${probability * 100}% - 3px)` }}
-                />
-              </div>
-              <div className="mt-1 flex justify-between text-[10px] text-[var(--color-text-muted)]">
-                <span>Low &lt; 30%</span><span>Moderate 30–60%</span><span>High ≥ 60%</span>
-              </div>
-
-              <dl className="mt-5 space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <dt className="text-[var(--color-text-muted)]">Model</dt>
-                  <dd className="font-medium">{modelMethodLabel(result.trainingMethod)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-[var(--color-text-muted)]">Version</dt>
-                  <dd className="font-mono">{result.modelVersion}</dd>
-                </div>
-              </dl>
-
-              <Link to="/history" className="mt-4 inline-block text-sm text-[var(--color-primary-600)] hover:underline">
-                View my history →
-              </Link>
-            </div>
-          ) : (
-            <div className="card text-center py-10 text-[var(--color-text-muted)]">
-              <p className="text-3xl mb-2">🩺</p>
-              <p className="text-sm">Your result will appear here.</p>
-            </div>
-          )}
-
-          <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
-            <strong>Research estimate only.</strong> This is not a medical diagnosis. The model was trained on
-            the PIMA Indians Diabetes dataset (adult women of Pima heritage) and may not generalise to you.
-            Please consult a qualified healthcare professional.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <div>
+    <PageHeader eyebrow="Assessments / New estimate" title="Research assessment" description="Eight measurements, one traceable estimate. The active model and its version are recorded with every result." actions={<Link to="/history" className="btn-secondary"><Icon name="clock" size={16}/>View history</Link>}/>
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start"><form onSubmit={submit} noValidate className="card xl:col-span-2"><div className="section-heading"><div><h2>Enter the measurements</h2><p>Enter your measurements, or try an example to explore the result.</p></div><span className="badge badge-neutral">{completed} / 8 complete</span></div><div className="flex flex-wrap gap-2 pb-6 mb-6 border-b border-[var(--color-border)]">{Object.entries(SAMPLE_PATIENTS).map(([label,sample])=><button type="button" className="btn-secondary text-xs" onClick={()=>fillSample(sample)} disabled={submitting} key={label}><Icon name="file" size={14}/>{label}</button>)}</div>
+      <p className="eyebrow">Profile & family history</p><div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">{['Age','Pregnancies','DiabetesPedigreeFunction'].map(renderField)}</div><p className="eyebrow">Health measurements</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-5">{['Glucose','BloodPressure','BMI','Insulin','SkinThickness'].map(renderField)}</div>
+      {error&&<div className="form-feedback mt-6 mb-0" role="alert">{error}</div>}
+      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-border)] mt-7 pt-6"><button type="submit" disabled={submitting} className="btn-primary"><Icon name="pulse" size={17}/>{submitting?'Generating estimate…':'Generate research estimate'}</button><button type="button" className="btn-quiet" disabled={submitting} onClick={()=>{setValues({});setErrors({});setResult(null);setError('');}}>Clear form</button></div>
+    </form>
+    <aside className="space-y-5"><section className="card assessment-result" aria-live="polite" aria-busy={submitting}>{result?<><div className="section-heading mb-0"><h2>Research estimate</h2><Icon name="pulse" size={20}/></div><p className="result-probability">{(result.probability*100).toFixed(1)}<span className="text-2xl ml-1">%</span></p><span className="badge badge-neutral">{result.riskLevel} risk band</span><div className="h-1.5 rounded-full bg-[var(--color-surface-tertiary)] mt-7 overflow-hidden"><div className="h-full bg-[var(--color-primary-600)] rounded-full" style={{width:`${result.probability*100}%`}}/></div><p className="text-xs text-[var(--color-text-muted)] mt-3 leading-relaxed">The app’s research bands are &lt;30%, 30–60% and ≥60%. These are not clinical thresholds.</p><dl className="mt-5"><div className="small-definition"><dt>Training method</dt><dd>{modelMethodLabel(result.trainingMethod)}</dd></div><div className="small-definition"><dt>Model version</dt><dd className="font-mono break-all">{result.modelVersion}</dd></div></dl><Link to="/history" className="btn-secondary w-full mt-5">View saved assessment</Link></>:<><Icon name="pulse" size={25} className="text-[var(--color-text-muted)]"/><h2 className="text-lg font-medium mt-5">Your result belongs here.</h2><p className="text-sm text-[var(--color-text-muted)] mt-3 leading-relaxed">Complete the measurements to generate an estimate from the currently active research model.</p><div className="small-definition mt-7"><span>Measurements entered</span><span>{completed} of 8</span></div><div className="small-definition"><span>Model source</span><span>Active registry model</span></div></>}</section><section className="card"><Icon name="info" size={19}/><h3 className="text-sm font-medium mt-4">Context matters.</h3><p className="text-xs text-[var(--color-text-muted)] mt-3 leading-relaxed">This model was trained on adult women of Pima heritage and may not generalize to other populations. Results are research estimates, with no established clinical validity. Consult a qualified healthcare professional for medical decisions.</p></section></aside></div>
+  </div>;
 }

@@ -48,6 +48,17 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('public registration boundaries', () => {
+    it('rejects staff privilege escalation even when called without DTO validation', async () => {
+      await expect(service.register({ email: 'test@example.org', password: 'test-password', firstName: 'Test', lastName: 'User', role: UserRole.RESEARCHER })).rejects.toThrow('administrator');
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
+    });
+    it('rejects passwords that bcrypt would truncate, including multibyte characters', async () => {
+      await expect(service.register({ email: 'test@example.org', password: '\u00e9'.repeat(37), firstName: 'Test', lastName: 'User' })).rejects.toThrow('72 UTF-8 bytes');
+      expect(mockUserRepo.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('register', () => {
     it('should register a new user successfully', async () => {
       mockUserRepo.findOne.mockResolvedValue(null); // no existing user

@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { enumFilter, pagination } from '../../config/query-validation';
+import { mlRequestOptions } from '../../config/security';
+import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -37,8 +39,8 @@ export class ModelsService {
   }
 
   async findAll(options: { page?: number; limit?: number; status?: ModelStatus }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 20, 100);
+    const { page, limit } = pagination(options);
+    enumFilter(options.status, ModelStatus, 'status');
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -102,6 +104,23 @@ export class ModelsService {
       throw new BadRequestException(`Cannot activate a model with status '${model.status}'`);
     }
 
+    // Database history can outlive the ML filesystem (for example after a move
+    // or redeployment). Verify the actual artifacts before changing the active model.
+    let available: { models: { model_id: string }[] };
+    try {
+      const response = await fetch(`${this.mlServiceUrl}/api/v1/ml/models`, {
+        ...mlRequestOptions(this.configService, 5000),
+      });
+      if (!response.ok) throw new Error('Model listing failed');
+      available = await response.json();
+      if (!Array.isArray(available.models)) throw new Error('Invalid model listing');
+    } catch {
+      throw new ServiceUnavailableException('Cannot verify model files. Check that the ML service is running.');
+    }
+    if (!available.models.some((candidate) => candidate.model_id === model.modelId)) {
+      throw new BadRequestException('Model files are missing on the ML service. Train a new experiment before activating this model.');
+    }
+
     await this.dataSource.transaction(async (manager) => {
       await manager.update(MlModel, { isActive: true }, { isActive: false });
       await manager.update(MlModel, { id }, { isActive: true });
@@ -124,7 +143,7 @@ export class ModelsService {
 
   async syncFromMlService() {
     try {
-      const response = await fetch(`${this.mlServiceUrl}/api/v1/ml/models`);
+      const response = await fetch(`${this.mlServiceUrl}/api/v1/ml/models`, mlRequestOptions(this.configService, 5000));
       if (!response.ok) return { synced: 0, error: 'ML service unavailable' };
 
       const data = await response.json();

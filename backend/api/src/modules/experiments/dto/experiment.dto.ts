@@ -10,8 +10,9 @@ import {
   IsUUID,
   ValidateNested,
   MaxLength,
+  MinLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TrainingMethod, PartitionType } from '../entities/experiment.entity';
 
@@ -37,7 +38,9 @@ export class DpConfigDto {
 
 export class CreateExperimentDto {
   @ApiProperty({ example: 'Centralized Baseline v1' })
+  @Transform(({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value)
   @IsString()
+  @MinLength(1)
   @MaxLength(200)
   name: string;
 
@@ -114,6 +117,11 @@ export class CreateExperimentDto {
   @IsOptional()
   @IsBoolean()
   balanceClasses?: boolean;
+
+  @ApiPropertyOptional({ default: false, description: 'Select FedAvg configuration by development CV and refit before final test scoring' })
+  @IsOptional()
+  @IsBoolean()
+  optimizeModel?: boolean;
 
   @ApiPropertyOptional({ type: () => DpConfigDto })
   @IsOptional()

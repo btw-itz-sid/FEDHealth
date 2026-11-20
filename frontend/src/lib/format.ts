@@ -88,4 +88,4 @@ export function toCsv(rows: Record<string, unknown>[]): string {
   return [headers.join(','), ...rows.map((r) => headers.map((h) => escape(r[h])).join(','))].join('\n');
 }
 
-export const CHART_COLORS = ['#2563eb', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b', '#22c55e'];
+export const CHART_COLORS = ['#3d6c63', '#899d92', '#a28c61', '#94756d', '#737a91', '#a48b91', '#64748b', '#7f9062'];

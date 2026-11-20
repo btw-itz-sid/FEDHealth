@@ -1,0 +1,58 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes: ["caddy_data:/data", "caddy_config:/config"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+  api:
+    build:
+      context: .
+      dockerfile: backend/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      JWT_EXPIRATION: 1h
+      TRUST_PROXY: "1"
+      CORS_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      ML_SERVICE_URL: http://ml:8000
+      ML_SERVICE_KEY: ${ML_SERVICE_KEY:?Set ML_SERVICE_KEY}
+      DATASET_UPLOAD_DIR: /app/data/uploads
+    volumes: ["research_data:/app/data"]
+    depends_on:
+      ml: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/v1/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+    init: true
+    restart: unless-stopped
+  ml:
+    build:
+      context: .
+      dockerfile: backend/ml-service/Dockerfile
+    environment:
+      NODE_ENV: production
+      ML_SERVICE_KEY: ${ML_SERVICE_KEY:?Set ML_SERVICE_KEY}
+      MAX_TRAINING_ROWS: 10000
+    volumes: ["research_data:/app/data", "model_data:/app/models", "artifact_data:/app/artifacts"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+    init: true
+    restart: unless-stopped
+volumes:
+  research_data:
+  model_data:
+  artifact_data:
+  caddy_data:
+  caddy_config:

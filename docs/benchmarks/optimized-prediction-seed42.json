@@ -1,0 +1,325 @@
+{
+  "model_id": "centralized_20261120_124207_33bc55",
+  "model_version": "v1.0_20261120_124207",
+  "model_type": "LogisticRegression",
+  "training_method": "centralized",
+  "feature_columns": [
+    "Pregnancies",
+    "Glucose",
+    "BloodPressure",
+    "SkinThickness",
+    "Insulin",
+    "BMI",
+    "DiabetesPedigreeFunction",
+    "Age"
+  ],
+  "target_column": "Outcome",
+  "preprocessing": {
+    "zero_to_nan_columns": [
+      "Glucose",
+      "BloodPressure",
+      "SkinThickness",
+      "Insulin",
+      "BMI"
+    ],
+    "imputer_strategy": "median",
+    "missing_indicators": true,
+    "scaler": "standard"
+  },
+  "training_config": {
+    "random_seed": 42,
+    "test_size": 0.2,
+    "selected_estimator": "LogisticRegression",
+    "optimize": true,
+    "balance_classes": false,
+    "evaluation_protocol": "development_cv3_prediction_v3",
+    "validation_fraction_of_development": 0
+  },
+  "dataset_fingerprint": "936def97acdee499",
+  "metrics": {
+    "accuracy": 0.714286,
+    "precision": 0.604167,
+    "recall": 0.537037,
+    "f1_score": 0.568627,
+    "confusion_matrix": [
+      [
+        81,
+        19
+      ],
+      [
+        25,
+        29
+      ]
+    ],
+    "roc_auc": 0.81537,
+    "per_class": {
+      "0": {
+        "precision": 0.764151,
+        "recall": 0.81,
+        "f1_score": 0.786408,
+        "support": 100
+      },
+      "1": {
+        "precision": 0.604167,
+        "recall": 0.537037,
+        "f1_score": 0.568627,
+        "support": 54
+      }
+    },
+    "num_train_samples": 614,
+    "num_validation_samples": 0,
+    "num_test_samples": 154,
+    "evaluation_protocol": "development_cv3_prediction_v3",
+    "evaluation_manifest": {
+      "protocol": "development_cv3_prediction_v3",
+      "validation_fraction_of_development": 0,
+      "round_metrics_split": "development_cv3_selection",
+      "final_metrics_split": "test",
+      "preprocessing_fit_split": "train",
+      "splits": {
+        "train": {
+          "count": 614,
+          "indices_sha256": "beca94d1e9c31a3fba0bd4979e601e1fe85d0461edf0453e1bc5ac3901c89612"
+        },
+        "validation": {
+          "count": 0,
+          "indices_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "test": {
+          "count": 154,
+          "indices_sha256": "6f1e42657bd8da9155db9b91d377375a188123e004664bf97950138d73a494a2"
+        }
+      },
+      "selection": "3-fold CV within development; refit on development"
+    },
+    "optimization": {
+      "protocol": "development_cv3_prediction_v3",
+      "selection_split": "development_only_cv3",
+      "test_used_for_selection": false,
+      "objective": "accuracy",
+      "selected": {
+        "estimator": "LogisticRegression",
+        "parameters": {
+          "C": 0.1,
+          "class_weight": null
+        },
+        "accuracy": 0.788275,
+        "roc_auc": 0.844564,
+        "recall": 0.588419
+      },
+      "candidates": [
+        {
+          "estimator": "LogisticRegression",
+          "parameters": {
+            "C": 0.1,
+            "class_weight": null
+          },
+          "accuracy": 0.788275,
+          "roc_auc": 0.844564,
+          "recall": 0.588419
+        },
+        {
+          "estimator": "LogisticRegression",
+          "parameters": {
+            "C": 0.1,
+            "class_weight": "balanced"
+          },
+          "accuracy": 0.758935,
+          "roc_auc": 0.844741,
+          "recall": 0.709898
+        },
+        {
+          "estimator": "LogisticRegression",
+          "parameters": {
+            "C": 1.0,
+            "class_weight": null
+          },
+          "accuracy": 0.786673,
+          "roc_auc": 0.8407,
+          "recall": 0.593114
+        },
+        {
+          "estimator": "LogisticRegression",
+          "parameters": {
+            "C": 1.0,
+            "class_weight": "balanced"
+          },
+          "accuracy": 0.750781,
+          "roc_auc": 0.842912,
+          "recall": 0.700574
+        },
+        {
+          "estimator": "LogisticRegression",
+          "parameters": {
+            "C": 10.0,
+            "class_weight": null
+          },
+          "accuracy": 0.783421,
+          "roc_auc": 0.840173,
+          "recall": 0.593114
+        },
+        {
+          "estimator": "LogisticRegression",
+          "parameters": {
+            "C": 10.0,
+            "class_weight": "balanced"
+          },
+          "accuracy": 0.750781,
+          "roc_auc": 0.841924,
+          "recall": 0.700574
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 0.5,
+            "gamma": "scale"
+          },
+          "accuracy": 0.755739,
+          "roc_auc": 0.819999,
+          "recall": 0.52367
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 0.5,
+            "gamma": 0.03
+          },
+          "accuracy": 0.757365,
+          "roc_auc": 0.831797,
+          "recall": 0.513954
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 1.0,
+            "gamma": "scale"
+          },
+          "accuracy": 0.762251,
+          "roc_auc": 0.819632,
+          "recall": 0.551643
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 1.0,
+            "gamma": 0.03
+          },
+          "accuracy": 0.768755,
+          "roc_auc": 0.831,
+          "recall": 0.556142
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 3.0,
+            "gamma": "scale"
+          },
+          "accuracy": 0.747561,
+          "roc_auc": 0.805936,
+          "recall": 0.560837
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 3.0,
+            "gamma": 0.03
+          },
+          "accuracy": 0.752495,
+          "roc_auc": 0.822487,
+          "recall": 0.528169
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 10.0,
+            "gamma": "scale"
+          },
+          "accuracy": 0.728025,
+          "roc_auc": 0.776294,
+          "recall": 0.579421
+        },
+        {
+          "estimator": "SVC",
+          "parameters": {
+            "C": 10.0,
+            "gamma": 0.03
+          },
+          "accuracy": 0.745951,
+          "roc_auc": 0.800618,
+          "recall": 0.537363
+        },
+        {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": null,
+            "min_samples_leaf": 3
+          },
+          "accuracy": 0.783413,
+          "roc_auc": 0.838644,
+          "recall": 0.612024
+        },
+        {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": null,
+            "min_samples_leaf": 8
+          },
+          "accuracy": 0.773649,
+          "roc_auc": 0.840694,
+          "recall": 0.5982
+        },
+        {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": "balanced",
+            "min_samples_leaf": 3
+          },
+          "accuracy": 0.765511,
+          "roc_auc": 0.832164,
+          "recall": 0.728678
+        },
+        {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": "balanced",
+            "min_samples_leaf": 8
+          },
+          "accuracy": 0.760633,
+          "roc_auc": 0.838241,
+          "recall": 0.756781
+        },
+        {
+          "estimator": "HistGradientBoostingClassifier",
+          "parameters": {
+            "l2_regularization": 1.0
+          },
+          "accuracy": 0.762251,
+          "roc_auc": 0.830954,
+          "recall": 0.607394
+        },
+        {
+          "estimator": "HistGradientBoostingClassifier",
+          "parameters": {
+            "l2_regularization": 10.0
+          },
+          "accuracy": 0.767129,
+          "roc_auc": 0.837461,
+          "recall": 0.607394
+        }
+      ]
+    },
+    "validation_metrics": {
+      "accuracy": 0.788275,
+      "evaluation_split": "development_cv3_selection",
+      "selection_estimate_only": true
+    },
+    "training_duration_seconds": 7.327,
+    "train_accuracy": 0.79316,
+    "train_roc_auc": 0.854977
+  },
+  "created_at": "2026-11-20T12:42:07.200721+00:00",
+  "experiment_id": null,
+  "experiment_name": "Development-CV optimized prediction baseline",
+  "artifact_path": "C:\\Users\\HP\\OneDrive\\Desktop\\FedHealth\\backend\\ml-service\\models\\centralized_20261120_124207_33bc55\\pipeline.joblib",
+  "status": "ready"
+}

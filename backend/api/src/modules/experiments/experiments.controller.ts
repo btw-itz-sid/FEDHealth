@@ -12,7 +12,7 @@ import {
 import {
   ApiTags,
   ApiOperation,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiQuery,
 } from '@nestjs/swagger';
 import { ExperimentsService } from './experiments.service';
@@ -26,7 +26,7 @@ import { Request } from 'express';
 @ApiTags('Experiments')
 @Controller('experiments')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
+@ApiCookieAuth()
 export class ExperimentsController {
   constructor(private readonly experimentsService: ExperimentsService) {}
 
@@ -76,7 +76,7 @@ export class ExperimentsController {
 
   @Post(':id/cancel')
   @Roles(UserRole.RESEARCHER, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Cancel a running experiment' })
+  @ApiOperation({ summary: 'Cancel a queued experiment' })
   async cancel(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     return this.experimentsService.cancel(id, (req.user as any).id);
   }

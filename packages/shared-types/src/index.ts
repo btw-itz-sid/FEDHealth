@@ -26,7 +26,6 @@ export interface User {
 
 export interface AuthResponse {
   user: User;
-  accessToken: string;
 }
 
 export interface RegisterRequest {
@@ -34,7 +33,7 @@ export interface RegisterRequest {
   password: string;
   firstName: string;
   lastName: string;
-  role?: UserRole;
+  role?: UserRole.PATIENT;
 }
 
 export interface LoginRequest {

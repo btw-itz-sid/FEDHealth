@@ -6,11 +6,11 @@ from pathlib import Path
 # ---- Paths ----
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent.parent
-MODELS_DIR = BASE_DIR / "models"
-DATA_DIR = PROJECT_ROOT / "data"
+MODELS_DIR = Path(os.getenv("MODELS_DIR", str(BASE_DIR / "models")))
+DATA_DIR = Path(os.getenv("DATA_DIR", str(PROJECT_ROOT / "data")))
 UPLOADS_DIR = DATA_DIR / "uploads"
 DEFAULT_DATASET = "diabetes.csv"
-ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(PROJECT_ROOT / "artifacts")))
 
 # Ensure directories exist
 MODELS_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,3 +1,4 @@
+import { enumFilter, pagination } from '../../config/query-validation';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -31,8 +32,8 @@ export class AuditService {
     action?: AuditAction;
     userId?: string;
   }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 50, 100);
+    const { page, limit } = pagination(options, 50);
+    enumFilter(options.action, AuditAction, 'action');
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.auditLogRepository

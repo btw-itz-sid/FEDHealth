@@ -1,5 +1,10 @@
+import { enumFilter, pagination } from '../../config/query-validation';
+import { mlRequestOptions } from '../../config/security';
 import {
   Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  ForbiddenException,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -23,7 +28,10 @@ import { CreateExperimentDto } from './dto/experiment.dto';
 const DP_DEFAULTS = { epsilon: 1.0, delta: 1e-5, clipNorm: 1.0 };
 
 @Injectable()
-export class ExperimentsService {
+export class ExperimentsService implements OnModuleInit, OnModuleDestroy {
+  private worker?: ReturnType<typeof setTimeout>;
+  private working = false;
+  private stopping = false;
   private readonly mlServiceUrl: string;
 
   constructor(
@@ -66,6 +74,9 @@ export class ExperimentsService {
     if (dto.differentialPrivacy && dto.trainingMethod !== TrainingMethod.FEDAVG) {
       throw new BadRequestException('Differential privacy is only supported for FedAvg');
     }
+    if (dto.optimizeModel && dto.trainingMethod !== TrainingMethod.CENTRALIZED && (dto.trainingMethod !== TrainingMethod.FEDAVG || dto.differentialPrivacy || partitionType !== PartitionType.IID)) {
+      throw new BadRequestException('Automatic tuning requires IID FedAvg without added noise');
+    }
 
     const dpConfig = dto.differentialPrivacy ? { ...DP_DEFAULTS, ...dto.dpConfig } : undefined;
 
@@ -88,11 +99,48 @@ export class ExperimentsService {
       metadata: { trainingMethod: dto.trainingMethod, partitionType },
     });
 
-    this.runExperimentAsync(saved.id, basename(dataset.filepath)).catch((err) => {
-      console.error(`Experiment ${saved.id} failed:`, err.message);
-    });
+    this.scheduleWork(); // Wake the database-backed worker without holding this request open.
 
     return saved;
+  }
+
+  async onModuleInit() {
+    // A lost HTTP response cannot establish whether the old ML run completed.
+    // Keep its history honest rather than leaving it permanently Running.
+    await this.experimentRepository.update({ status: ExperimentStatus.RUNNING }, {
+      status: ExperimentStatus.FAILED, completedAt: new Date(),
+      errorMessage: 'Training was interrupted by a service restart. Start a new run to retry.',
+    });
+    this.scheduleWork();
+  }
+
+  onModuleDestroy() { this.stopping = true; if (this.worker) clearTimeout(this.worker); }
+
+  private scheduleWork(delay = 0) {
+    if (this.stopping) return;
+    if (this.worker) clearTimeout(this.worker);
+    this.worker = setTimeout(() => { void this.processQueue().catch(error => {
+      console.error('Training queue unavailable:', error.message);
+      this.scheduleWork(10000);
+    }); }, delay);
+  }
+
+  private async processQueue() {
+    if (this.stopping) return;
+    if (this.working) { this.scheduleWork(1000); return; }
+    this.working = true;
+    let continueQueue = false;
+    try {
+      const next = await this.experimentRepository.findOne({ where: { status: ExperimentStatus.QUEUED }, order: { createdAt: 'ASC' } });
+      if (!next) return;
+      continueQueue = true;
+      const dataset = await this.datasetRepository.findOne({ where: { id: next.datasetId } });
+      if (!dataset || dataset.status !== DatasetStatus.VALID) {
+        await this.experimentRepository.update({ id: next.id, status: ExperimentStatus.QUEUED }, { status: ExperimentStatus.FAILED, completedAt: new Date(), errorMessage: 'The selected dataset is no longer available or valid.' });
+        return;
+      }
+      await this.runExperimentAsync(next.id, basename(dataset.filepath));
+    } finally { this.working = false; if (continueQueue) this.scheduleWork(); }
   }
 
   private buildTrainingRequest(experiment: Experiment, datasetFile: string) {
@@ -103,6 +151,7 @@ export class ExperimentsService {
       balance_classes: experiment.balanceClasses,
       experiment_id: experiment.id,
       experiment_name: experiment.name,
+      optimize: Boolean(experiment.configSnapshot?.optimizeModel),
     };
 
     if (experiment.trainingMethod === TrainingMethod.CENTRALIZED) {
@@ -125,6 +174,7 @@ export class ExperimentsService {
         dp_epsilon: dp.epsilon,
         dp_delta: dp.delta,
         dp_clip_norm: dp.clipNorm,
+        optimize: Boolean(experiment.configSnapshot?.optimizeModel),
       },
     };
   }
@@ -135,9 +185,12 @@ export class ExperimentsService {
     });
     if (!experiment) return;
 
+    if (experiment.status !== ExperimentStatus.QUEUED) return;
+    const startedAt = new Date();
+    const claimed = await this.experimentRepository.update({ id: experimentId, status: ExperimentStatus.QUEUED }, { status: ExperimentStatus.RUNNING, startedAt });
+    if (!claimed.affected) return;
     experiment.status = ExperimentStatus.RUNNING;
-    experiment.startedAt = new Date();
-    await this.experimentRepository.save(experiment);
+    experiment.startedAt = startedAt;
 
     await this.auditService.log({
       action: AuditAction.EXPERIMENT_STARTED,
@@ -149,7 +202,7 @@ export class ExperimentsService {
       const { endpoint, body } = this.buildTrainingRequest(experiment, datasetFile);
       const response = await fetch(`${this.mlServiceUrl}${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        ...mlRequestOptions(this.configService, 3600000),
         body: JSON.stringify(body),
       });
 
@@ -185,7 +238,9 @@ export class ExperimentsService {
                 accuracy: result.metrics.train_accuracy,
                 roc_auc: result.metrics.train_roc_auc,
               },
-              evalMetrics: result.metrics,
+              evalMetrics: result.metrics.validation_metrics
+                ? { ...result.metrics.validation_metrics, evaluation_split: result.metrics.validation_metrics.evaluation_split ?? 'validation' }
+                : result.metrics,
               durationSeconds: result.metrics.training_duration_seconds,
             }),
           ];
@@ -211,6 +266,17 @@ export class ExperimentsService {
       experiment.currentRound = rounds.length;
       experiment.modelId = result.model_id;
       experiment.finalMetrics = { ...result.metrics, clients: result.clients };
+      if (result.training_config?.optimize) {
+        // Preserve the original request in the snapshot, but display what the
+        // CV-selected model actually trained with in experiment summaries.
+        const resolved = result.training_config;
+        experiment.balanceClasses = Boolean(resolved.balance_classes);
+        experiment.numRounds = resolved.num_rounds ?? experiment.numRounds;
+        experiment.localEpochs = resolved.local_epochs ?? experiment.localEpochs;
+        experiment.learningRate = resolved.learning_rate ?? experiment.learningRate;
+        experiment.batchSize = resolved.batch_size ?? experiment.batchSize;
+        experiment.configSnapshot = { ...experiment.configSnapshot, resolvedTrainingConfig: resolved };
+      }
       experiment.durationSeconds =
         (experiment.completedAt.getTime() - experiment.startedAt.getTime()) / 1000;
       await this.experimentRepository.save(experiment);
@@ -246,8 +312,9 @@ export class ExperimentsService {
     status?: ExperimentStatus;
     trainingMethod?: TrainingMethod;
   }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 20, 100);
+    const { page, limit } = pagination(options);
+    enumFilter(options.status, ExperimentStatus, 'status');
+    enumFilter(options.trainingMethod, TrainingMethod, 'trainingMethod');
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.experimentRepository
@@ -301,18 +368,18 @@ export class ExperimentsService {
 
   async cancel(id: string, userId: string) {
     const experiment = await this.findOne(id);
-    if (
-      experiment.status !== ExperimentStatus.QUEUED &&
-      experiment.status !== ExperimentStatus.RUNNING
-    ) {
+    if (experiment.createdBy !== userId) throw new ForbiddenException('Only the creator can cancel this queued run');
+    if (experiment.status !== ExperimentStatus.QUEUED) {
       throw new BadRequestException(
-        `Cannot cancel experiment with status '${experiment.status}'`,
+        'Only queued runs can be cancelled. A running training job continues until completion.',
       );
     }
 
+    const completedAt = new Date();
+    const cancelled = await this.experimentRepository.update({ id, status: ExperimentStatus.QUEUED }, { status: ExperimentStatus.CANCELLED, completedAt });
+    if (!cancelled.affected) throw new BadRequestException('This run has already started and can no longer be cancelled');
     experiment.status = ExperimentStatus.CANCELLED;
-    experiment.completedAt = new Date();
-    await this.experimentRepository.save(experiment);
+    experiment.completedAt = completedAt;
 
     await this.auditService.log({
       action: AuditAction.EXPERIMENT_CANCELLED,

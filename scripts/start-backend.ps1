@@ -36,7 +36,7 @@ if (Test-Listening 8000) {
   Write-Host "Starting ML service at http://localhost:8000"
   $mlProc = Start-Process -FilePath $Python `
     -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000") `
-    -WorkingDirectory $MlDir -PassThru -WindowStyle Minimized
+    -WorkingDirectory $MlDir -PassThru -WindowStyle Hidden
   $deadline = (Get-Date).AddSeconds(30)
   while (-not (Test-Listening 8000)) {
     if ($mlProc.HasExited) {

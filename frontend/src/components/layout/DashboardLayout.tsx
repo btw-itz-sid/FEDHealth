@@ -1,130 +1,63 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import Icon, { type IconName } from '@/components/ui/Icon';
+import Brand from '@/components/ui/Brand';
 
-const navItems = [
-  { to: '/', label: 'Overview', icon: '📊', roles: ['patient', 'researcher', 'admin'] },
-  { to: '/how-it-works', label: 'How it works', icon: '🔄', roles: ['researcher', 'admin'] },
-  { to: '/assess', label: 'Risk Assessment', icon: '🩺', roles: ['patient', 'researcher', 'admin'] },
-  { to: '/history', label: 'My History', icon: '📋', roles: ['patient', 'researcher', 'admin'] },
-  { to: '/datasets', label: 'Datasets', icon: '📁', roles: ['researcher', 'admin'] },
-  { to: '/experiments', label: 'Experiments', icon: '🔬', roles: ['researcher', 'admin'] },
-  { to: '/compare', label: 'Compare', icon: '📈', roles: ['researcher', 'admin'] },
-  { to: '/models', label: 'Models', icon: '🧠', roles: ['researcher', 'admin'] },
-  { to: '/admin', label: 'Admin', icon: '⚙️', roles: ['admin'] },
-  { to: '/profile', label: 'Profile', icon: '👤', roles: ['patient', 'researcher', 'admin'] },
+
+const groups: { label: string; items: { to: string; label: string; icon: IconName; roles?: string[] }[] }[] = [
+  { label: 'Workspace', items: [{ to: '/', label: 'Home', icon: 'grid' }, { to: '/assess', label: 'New assessment', icon: 'pulse' }, { to: '/history', label: 'My history', icon: 'clock' }] },
+  { label: 'Research', items: [{ to: '/experiments', label: 'Train model', icon: 'flask' }, { to: '/compare', label: 'Results', icon: 'chart' }].map(item => ({ ...item, icon: item.icon as IconName, roles: ['researcher', 'admin'] })) },
+  { label: 'Advanced tools', items: [{ to: '/datasets', label: 'Datasets', icon: 'database', roles: ['researcher', 'admin'] }, { to: '/models', label: 'Model registry', icon: 'layers', roles: ['researcher', 'admin'] }, { to: '/profile', label: 'Account settings', icon: 'settings' }, { to: '/admin', label: 'Administration', icon: 'users', roles: ['admin'] }] },
 ];
 
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const filteredNav = navItems.filter(
-    (item) => user && item.roles.includes(user.role)
-  );
-
-  return (
-    <div className="flex h-screen overflow-hidden bg-[var(--color-surface-secondary)]">
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] transform transition-transform duration-200 lg:relative lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-[var(--color-border)]">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--color-primary-500)] to-[var(--color-teal-500)] flex items-center justify-center">
-            <span className="text-white font-bold text-sm">FH</span>
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-[var(--color-text-primary)]">FedHealth</h1>
-            <p className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider">Research Platform</p>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {filteredNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[var(--color-primary-50)] text-[var(--color-primary-700)]'
-                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-tertiary)] hover:text-[var(--color-text-primary)]'
-                }`
-              }
-            >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* User section */}
-        <div className="border-t border-[var(--color-border)] p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-[var(--color-primary-100)] flex items-center justify-center">
-              <span className="text-sm font-semibold text-[var(--color-primary-700)]">
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="text-xs text-[var(--color-text-muted)] capitalize">{user?.role}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-error)] hover:bg-red-50 rounded-lg transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-[var(--color-surface)]/80 backdrop-blur-md border-b border-[var(--color-border)] px-6 py-3">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg hover:bg-[var(--color-surface-tertiary)]"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div className="flex-1" />
-            <span className="badge badge-info text-xs">v0.1.0</span>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <div className="p-6">
-          <Outlet />
-        </div>
-      </main>
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const navigation = useRef<HTMLElement>(null);
+  const pageTitle = groups.flatMap(group => group.items).find(item => item.to === pathname)?.label ?? (pathname.startsWith('/experiments/') ? 'Training details' : 'Workspace');
+  useEffect(() => { window.scrollTo(0, 0); setSidebarOpen(false); setAdvancedOpen(!!groups.find(group=>group.label==='Advanced tools')?.items.some(item=>item.to===pathname)); }, [pathname]);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const previous = document.activeElement as HTMLElement;
+    const controls = () => [...(navigation.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') ?? [])];
+    controls()[0]?.focus();
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const items = controls(); const first = items[0]; const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener('keydown', trap);
+    return () => { document.removeEventListener('keydown', trap); previous?.focus(); };
+  }, [sidebarOpen]);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { setSidebarOpen(false); } };
+    document.addEventListener('keydown', close);
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', close); };
+  }, [sidebarOpen]);
+  return <div className="app-shell">
+    <a href="#main-content" className="sr-skip">Skip to content</a>
+    {sidebarOpen && <button className="fixed inset-0 z-40 bg-black/20" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+    <aside ref={navigation} className={`sidebar ${sidebarOpen ? 'is-open' : ''}`} aria-label="Workspace navigation" role={sidebarOpen ? 'dialog' : undefined} aria-modal={sidebarOpen || undefined}>
+      <div className="flex items-center justify-between"><Brand /><button className="icon-button mobile-menu-button mb-8" onClick={() => setSidebarOpen(false)} aria-label="Close navigation"><Icon name="close" /></button></div>
+      <nav className="sidebar-scroll">{groups.map((group) => {
+        const items = group.items.filter((item) => !item.roles || item.roles.includes(user?.role ?? ''));
+        const advanced = group.label === 'Advanced tools';
+        const expanded = advancedOpen;
+        return items.length ? <div key={group.label}>{advanced ? <button className="nav-link w-full mt-5" onClick={() => setAdvancedOpen(!expanded)} aria-expanded={expanded}><Icon name="settings" size={18}/><span>Advanced tools</span><Icon name="chevronDown" size={14} className="ml-auto"/></button> : <p className="nav-label">{group.label}</p>}{(!advanced || expanded) && <>{items.map((item) => <NavLink to={item.to} end={item.to === '/'} key={item.to} className={({ isActive }) => `nav-link ${isActive || (item.to === '/experiments' && pathname.startsWith('/experiments/')) ? 'active' : ''}`}><Icon name={item.icon} size={18} /><span>{item.label}</span>{pathname === item.to && <span className="nav-current" />}</NavLink>)}</>}</div> : null;
+      })}</nav>
+      <div className="sidebar-bottom"><div className="user-identity"><span className="avatar">{user?.firstName?.[0]}{user?.lastName?.[0]}</span><div className="min-w-0"><p className="text-[13px] font-medium truncate">{user?.firstName} {user?.lastName}</p><p className="text-xs text-[var(--color-text-muted)] capitalize">{user?.role} workspace</p></div><button className="icon-button ml-auto" onClick={async () => { await logout(); navigate('/login'); }} aria-label="Sign out" title="Sign out"><Icon name="logout" size={18} /></button></div></div>
+    </aside>
+    <div className="workspace-main">
+      <header className="workspace-topbar"><div className="flex items-center gap-3"><button className="icon-button mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation" aria-expanded={sidebarOpen}><Icon name="menu" /></button><div className="breadcrumb"><span>FedHealth</span><Icon name="chevron" size={12} /><strong>{pageTitle}</strong></div></div><div className="topbar-actions"><Link to="/profile" aria-label="My account" className="btn-quiet"><Icon name="user" size={16} /><span className="hidden sm:inline">My account</span></Link></div></header>
+      <main id="main-content" className="workspace-content" tabIndex={-1}><Suspense fallback={<p role="status">Loading page…</p>}><Outlet /></Suspense></main>
     </div>
-  );
+  </div>;
 }

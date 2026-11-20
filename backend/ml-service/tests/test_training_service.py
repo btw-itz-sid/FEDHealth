@@ -157,7 +157,7 @@ class TestTrainCentralized:
         assert m["roc_auc"] is None or 0.0 <= m["roc_auc"] <= 1.0
         assert m["num_train_samples"] > 0
         assert m["num_test_samples"] > 0
-        assert m["num_train_samples"] + m["num_test_samples"] == 200
+        assert m["num_train_samples"] + m["num_validation_samples"] + m["num_test_samples"] == 200
 
     def test_model_artifact_saved(self):
         df = make_valid_df(n=200)
@@ -188,7 +188,8 @@ class TestTrainCentralized:
         result = train_centralized(df, random_seed=42, test_size=0.2)
         m = result["metrics"]
         assert m["num_test_samples"] == 40  # 200 * 0.2
-        assert m["num_train_samples"] == 160
+        assert m["num_train_samples"] == 128
+        assert m["num_validation_samples"] == 32
 
     def test_confusion_matrix_sums_to_test_size(self):
         df = make_valid_df(n=200)

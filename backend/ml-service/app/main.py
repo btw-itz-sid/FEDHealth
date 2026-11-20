@@ -2,16 +2,23 @@
 FedHealth ML Service — FastAPI Application
 ============================================
 """
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
 from app.routers import dataset, health, prediction, training
+from app.security import require_service_key, validate_security_configuration
+
+validate_security_configuration()
+production = os.getenv("NODE_ENV") == "production"
 
 app = FastAPI(
     title="FedHealth ML Service",
     description="Machine learning service for diabetes risk prediction",
     version="0.1.0",
+    docs_url=None if production else "/docs",
+    redoc_url=None if production else "/redoc",
+    openapi_url=None if production else "/openapi.json",
 )
 
 # CORS
@@ -27,6 +34,6 @@ app.add_middleware(
 # Routes
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(health.router, prefix="/api/v1/ml", tags=["Health"])
-app.include_router(training.router, prefix="/api/v1/ml", tags=["Training"])
-app.include_router(prediction.router, prefix="/api/v1/ml", tags=["Prediction"])
-app.include_router(dataset.router, prefix="/api/v1/ml", tags=["Datasets"])
+app.include_router(training.router, dependencies=[Depends(require_service_key)], prefix="/api/v1/ml", tags=["Training"])
+app.include_router(prediction.router, dependencies=[Depends(require_service_key)], prefix="/api/v1/ml", tags=["Prediction"])
+app.include_router(dataset.router, dependencies=[Depends(require_service_key)], prefix="/api/v1/ml", tags=["Datasets"])

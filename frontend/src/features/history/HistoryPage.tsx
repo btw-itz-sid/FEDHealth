@@ -4,6 +4,8 @@ import {
   CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '@/lib/api';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon from '@/components/ui/Icon';
 import { PIMA_FEATURE_FIELDS } from '@/lib/pima';
 import { modelMethodLabel, riskColor } from '@/lib/format';
 
@@ -40,19 +42,14 @@ export default function HistoryPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">My Assessment History</h1>
-          <p className="text-sm text-[var(--color-text-secondary)]">Only you can see your assessments.</p>
-        </div>
-        <Link to="/assess" className="btn-primary">+ New assessment</Link>
-      </div>
+      <PageHeader eyebrow="Assessments / Your records" title="Assessment history" description="Every estimate, with the measurements and model version behind it. Only your account can access these records." actions={<Link to="/assess" className="btn-primary"><Icon name="plus" size={16}/>New assessment</Link>} />
 
       {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>}
 
       {trend.length > 1 && (
         <div className="card mb-6">
-          <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Risk trend</h2>
+          <h2 className="text-base font-medium mb-2">Research estimates over time</h2>
+          <p className="text-xs text-[var(--color-text-muted)] mb-5">Changes can reflect different inputs or model versions. This chart does not measure a clinical health trend.</p>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trend} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -60,9 +57,9 @@ export default function HistoryPage() {
                 <XAxis dataKey="date" fontSize={12} />
                 <YAxis domain={[0, 100]} unit="%" fontSize={12} />
                 <Tooltip formatter={(v: number) => [`${v}%`, 'Probability']} />
-                <ReferenceLine y={30} stroke="#f59e0b" strokeDasharray="4 4" />
-                <ReferenceLine y={60} stroke="#ef4444" strokeDasharray="4 4" />
-                <Line type="monotone" dataKey="probability" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                <ReferenceLine y={30} stroke="#a28c61" strokeDasharray="4 4" />
+                <ReferenceLine y={60} stroke="#94756d" strokeDasharray="4 4" />
+                <Line type="monotone" dataKey="probability" stroke="#416f62" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -76,7 +73,7 @@ export default function HistoryPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-12 text-[var(--color-text-muted)]">
-            <p className="text-3xl mb-2">📋</p>
+            <Icon name="clock" size={28} className="mx-auto mb-4" />
             <p className="mb-4">No assessments yet.</p>
             <Link to="/assess" className="btn-primary">Take your first assessment</Link>
           </div>

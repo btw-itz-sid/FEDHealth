@@ -2,108 +2,30 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '@/lib/api';
 import { modelMethodLabel, num, pct } from '@/lib/format';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon from '@/components/ui/Icon';
 
+interface Model { id: string; modelId: string; modelVersion: string; modelType?: string; trainingMethod: string; experimentId?: string; isActive: boolean; createdAt: string; metrics?: { accuracy?: number; recall?: number; f1_score?: number; roc_auc?: number; evaluation_protocol?: string } }
 export default function ModelsPage() {
-  const [models, setModels] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [activating, setActivating] = useState<string | null>(null);
-  const [error, setError] = useState('');
-
-  const load = useCallback(() => {
-    return api.getModels(1, 100).then(setModels).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const activate = async (id: string) => {
-    setActivating(id);
-    setError('');
-    try {
-      await api.activateModel(id);
-      await load();
-    } catch (err: any) {
-      setError(err.message || 'Failed to activate model');
-    } finally {
-      setActivating(null);
-    }
-  };
-
-  const items: any[] = models?.items || [];
-  const active = items.find((m) => m.isActive);
-
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Model Registry</h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
-          Trained models. The <strong>active</strong> model serves every patient risk assessment.
-        </p>
-      </div>
-
-      {active && (
-        <div className="card mb-6 border-green-200 bg-green-50">
-          <p className="text-xs font-medium text-green-800 uppercase tracking-wider mb-1">Serving patient predictions</p>
-          <p className="font-semibold text-green-900">
-            {modelMethodLabel(active.trainingMethod)} · accuracy {pct(active.metrics?.accuracy)} · ROC-AUC {num(active.metrics?.roc_auc, 3)}
-          </p>
-          <p className="text-xs font-mono text-green-800 mt-1">{active.modelId}</p>
-        </div>
-      )}
-
-      {error && <div className="mb-4 p-3 rounded-lg bg-red-50 text-sm text-red-700">{error}</div>}
-
-      <div className="card">
-        {loading ? (
-          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-primary-600)]"></div></div>
-        ) : items.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)]">
-                  <th className="py-3 px-2 font-medium">Model</th>
-                  <th className="py-3 px-2 font-medium">Method</th>
-                  <th className="py-3 px-2 font-medium">Accuracy</th>
-                  <th className="py-3 px-2 font-medium">F1</th>
-                  <th className="py-3 px-2 font-medium">ROC-AUC</th>
-                  <th className="py-3 px-2 font-medium">Created</th>
-                  <th className="py-3 px-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((model) => (
-                  <tr key={model.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-secondary)]">
-                    <td className="py-3 px-2">
-                      <p className="font-mono text-xs">{model.modelId}</p>
-                      {model.experimentId && (
-                        <Link to={`/experiments/${model.experimentId}`} className="text-xs text-[var(--color-primary-600)] hover:underline">View experiment</Link>
-                      )}
-                    </td>
-                    <td className="py-3 px-2">{modelMethodLabel(model.trainingMethod)}</td>
-                    <td className="py-3 px-2">{pct(model.metrics?.accuracy)}</td>
-                    <td className="py-3 px-2">{num(model.metrics?.f1_score, 3)}</td>
-                    <td className="py-3 px-2">{num(model.metrics?.roc_auc, 3)}</td>
-                    <td className="py-3 px-2 text-[var(--color-text-muted)]">{new Date(model.createdAt).toLocaleString()}</td>
-                    <td className="py-3 px-2 text-right">
-                      {model.isActive ? (
-                        <span className="badge badge-success">Active</span>
-                      ) : (
-                        <button onClick={() => activate(model.id)} disabled={activating !== null} className="btn-secondary text-xs py-1">
-                          {activating === model.id ? 'Activating…' : 'Use for predictions'}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-12 text-[var(--color-text-muted)]">
-            <p className="text-3xl mb-2">🧠</p>
-            <p>No models yet. Centralized and FedAvg experiments register a model when they complete.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  const [models,setModels]=useState<Model[]>([]);
+  const [loading,setLoading]=useState(true);
+  const [activating,setActivating]=useState<string|null>(null);
+  const [error,setError]=useState('');
+  const [success,setSuccess]=useState('');
+  const [search,setSearch]=useState('');
+  const [includeLegacy,setIncludeLegacy]=useState(false);
+  const load=useCallback(async()=>{try{const result=await api.getModels(1,100);setModels(result.items??[]);}catch(error){setError(error instanceof Error?error.message:'Could not load the registry.');}finally{setLoading(false);}},[]);
+  useEffect(()=>{load();},[load]);
+  const activate=async(model:Model)=>{setActivating(model.id);setError('');setSuccess('');try{await api.activateModel(model.id);await load();setSuccess(`${modelMethodLabel(model.trainingMethod)} is now serving new research assessments.`);}catch(error){setError(error instanceof Error?error.message:'Activation failed.');}finally{setActivating(null);}};
+  const active=models.find((model)=>model.isActive);
+  const hasModern=models.some((model)=>model.metrics?.evaluation_protocol);
+  const visible=models.filter((model)=>(model.modelId+' '+model.trainingMethod).toLowerCase().includes(search.toLowerCase())&&(includeLegacy||!hasModern||model.metrics?.evaluation_protocol||model.isActive));
+  return <div>
+    <PageHeader eyebrow="Research / Model management" title="Model registry" description="A model is more than a score. Keep its training method, version and serving status together." actions={<Link to="/experiments?new=1" className="btn-secondary"><Icon name="flask" size={16}/>Train a model</Link>}/>
+    {error&&<div className="form-feedback" role="alert">{error}</div>}{success&&<div className="card mb-6 flex items-center gap-3 text-sm" role="status"><Icon name="check" size={17}/>{success}</div>}
+    {active&&<section className="card mb-7"><div className="flex flex-wrap items-start justify-between gap-7"><div><span className="badge badge-success">Serving new assessments</span><h2 className="text-2xl font-medium mt-4">{modelMethodLabel(active.trainingMethod)}</h2><p className="text-sm mt-2">{active.modelType?.replace(/Classifier$/,'').replace(/([a-z])([A-Z])/g,'$1 $2')}</p><p className="text-xs text-[var(--color-text-muted)] font-mono mt-2 break-all">{active.modelId}</p><p className="text-xs font-mono mt-2 break-all">Version {active.modelVersion}</p><p className="text-sm text-[var(--color-text-secondary)] mt-4">Every new assessment records this model’s version.</p>{active.experimentId&&<Link to={`/experiments/${active.experimentId}`} className="section-link inline-block mt-4">View the training evidence</Link>}</div><div className="grid grid-cols-3 gap-8 pt-2"><div><p className="text-xs text-[var(--color-text-muted)]">Test accuracy</p><p className="text-2xl font-medium mt-2">{pct(active.metrics?.accuracy)}</p></div><div><p className="text-xs text-[var(--color-text-muted)]">Recall</p><p className="text-2xl font-medium mt-2">{num(active.metrics?.recall,3)}</p></div><div><p className="text-xs text-[var(--color-text-muted)]">ROC-AUC</p><p className="text-2xl font-medium mt-2">{num(active.metrics?.roc_auc,3)}</p></div></div></div></section>}
+    <section className="card"><div className="section-heading"><div><h2>Trained pipelines</h2><p>{visible.length} models shown · activation checks that model files are available</p></div><Icon name="layers" size={20}/></div><div className="table-toolbar"><label className="search-field"><Icon name="search" size={16}/><input placeholder="Search by model or method" aria-label="Search models" value={search} onChange={(event)=>setSearch(event.target.value)}/></label><label className="flex gap-2 items-center text-xs text-[var(--color-text-secondary)]"><input type="checkbox" checked={includeLegacy} onChange={(event)=>setIncludeLegacy(event.target.checked)}/>Include legacy models</label></div>
+      {loading?<div className="empty-state" role="status">Loading model registry…</div>:visible.length?<div className="overflow-x-auto"><table><thead><tr className="text-left border-b border-[var(--color-border)]"><th>Model / version</th><th>Method</th><th>Test accuracy</th><th>F1</th><th>ROC-AUC</th><th>Status</th></tr></thead><tbody>{visible.map((model)=><tr key={model.id} className="border-b border-[var(--color-border)] last:border-0"><td className="pr-6 min-w-56"><p className="font-mono break-all">{model.modelId}</p><p className="text-xs text-[var(--color-text-muted)] mt-1">Version {model.modelVersion}</p><div className="flex gap-3 items-center text-xs mt-2"><span className="text-[var(--color-text-muted)]">{model.metrics?.evaluation_protocol?.includes('cv3')?'CV + final test':model.metrics?.evaluation_protocol?'v2 evaluation':'Legacy evaluation'}</span>{model.experimentId&&<Link className="section-link" to={`/experiments/${model.experimentId}`}>Training details</Link>}</div></td><td className="pr-5">{modelMethodLabel(model.trainingMethod)}<p className="text-xs mt-1 text-[var(--color-text-muted)]">{model.modelType?.replace(/Classifier$/,'').replace(/([a-z])([A-Z])/g,'$1 $2')}</p></td><td className="font-medium tabular-nums pr-5">{pct(model.metrics?.accuracy)}</td><td className="tabular-nums pr-5">{num(model.metrics?.f1_score,3)}</td><td className="tabular-nums pr-5">{num(model.metrics?.roc_auc,3)}</td><td>{model.isActive?<span className="badge badge-success">Active</span>:<button className="btn-secondary text-xs" disabled={activating!==null} onClick={()=>activate(model)}>{activating===model.id?'Checking files…':'Use for predictions'}</button>}</td></tr>)}</tbody></table></div>:<div className="empty-state"><Icon name="layers" size={30}/><h3>{models.length?'No models match your search':'No trained models yet'}</h3><p>A centralized or FedAvg experiment registers a pipeline when training completes.</p></div>}
+    </section><div className="research-note"><Icon name="info" size={15}/><p>Model files and database records are separate. Keep the ML service’s model storage when moving or deploying the application.</p></div>
+  </div>;
 }

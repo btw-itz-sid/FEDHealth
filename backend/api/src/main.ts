@@ -1,3 +1,4 @@
+import { browserSecurity } from './config/browser-security';
 // Columns are `timestamp without time zone`; the pg driver reads and writes them
 // in process-local time, so the process must run in UTC to round-trip correctly.
 process.env.TZ = 'UTC';
@@ -13,14 +14,15 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
+  app.enableShutdownHooks();
+  if (process.env.TRUST_PROXY === '1') app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  const allowedOrigins = [...new Set([...(process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean), ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173', 'http://127.0.0.1:5173'])])];
+  app.use(browserSecurity(allowedOrigins));
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') || [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-    ],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-FedHealth-Client'],
   });
 
   // Global validation pipe
@@ -30,7 +32,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
+      transformOptions: { enableImplicitConversion: false },
     }),
   );
 
@@ -43,7 +45,7 @@ async function bootstrap() {
       'model registry, and administration endpoints.',
     )
     .setVersion('0.1.0')
-    .addBearerAuth()
+    .addCookieAuth('fedhealth_session')
     .addTag('Auth', 'Authentication and user management')
     .addTag('Predictions', 'Diabetes risk predictions')
     .addTag('Datasets', 'Research dataset management')
@@ -52,8 +54,10 @@ async function bootstrap() {
     .addTag('Admin', 'Administration and audit')
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (process.env.NODE_ENV !== 'production') {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.API_PORT || 3001;
   await app.listen(port);

@@ -1,3 +1,4 @@
+import { enumFilter, pagination } from '../../config/query-validation';
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,8 +15,8 @@ export class UsersService {
   ) {}
 
   async findAll(options: { page?: number; limit?: number; role?: UserRole }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 20, 100);
+    const { page, limit } = pagination(options);
+    enumFilter(options.role, UserRole, 'role');
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.userRepository

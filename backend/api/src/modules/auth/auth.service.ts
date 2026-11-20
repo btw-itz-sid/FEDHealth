@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import {
   Injectable,
   ConflictException,
@@ -23,9 +24,12 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto, ipAddress?: string) {
+    if (dto.role && dto.role !== UserRole.PATIENT) throw new BadRequestException("Research access must be granted by an administrator");
+    this.validatePassword(dto.password);
+    if (!dto.firstName.trim() || !dto.lastName.trim()) throw new BadRequestException("First and last names are required");
     // Check for existing user
     const existingUser = await this.userRepository.findOne({
-      where: { email: dto.email.toLowerCase() },
+      where: { email: dto.email.trim().toLowerCase() },
     });
 
     if (existingUser) {
@@ -38,11 +42,11 @@ export class AuthService {
 
     // Create user
     const user = this.userRepository.create({
-      email: dto.email.toLowerCase(),
+      email: dto.email.trim().toLowerCase(),
       passwordHash,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      role: dto.role || UserRole.PATIENT,
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      role: UserRole.PATIENT,
     });
 
     const savedUser = await this.userRepository.save(user);
@@ -66,14 +70,15 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, ipAddress?: string) {
+    this.validatePassword(dto.password);
     const user = await this.userRepository.findOne({
-      where: { email: dto.email.toLowerCase() },
+      where: { email: dto.email.trim().toLowerCase() },
     });
 
     if (!user) {
       await this.auditService.log({
         action: AuditAction.USER_LOGIN_FAILED,
-        userEmail: dto.email.toLowerCase(),
+        userEmail: dto.email.trim().toLowerCase(),
         metadata: { reason: 'User not found' },
         ipAddress,
       });
@@ -131,6 +136,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto, ipAddress?: string) {
+    this.validatePassword(dto.currentPassword);
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -144,6 +150,7 @@ export class AuthService {
       throw new BadRequestException('New password must differ from the current password');
     }
 
+    this.validatePassword(dto.newPassword);
     const salt = await bcrypt.genSalt(12);
     user.passwordHash = await bcrypt.hash(dto.newPassword, salt);
     await this.userRepository.save(user);
@@ -158,12 +165,17 @@ export class AuthService {
       ipAddress,
     });
 
-    return { success: true };
+    return { success: true, accessToken: this.generateToken(user) };
+  }
+
+  private validatePassword(password: string) {
+    if (Buffer.byteLength(password, "utf8") > 72) throw new BadRequestException("Password must be at most 72 UTF-8 bytes");
   }
 
   private generateToken(user: User): string {
     const payload = {
       sub: user.id,
+      credentialVersion: createHash("sha256").update(user.passwordHash).digest("hex"),
       email: user.email,
       role: user.role,
     };

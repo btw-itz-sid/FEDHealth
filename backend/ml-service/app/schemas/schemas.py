@@ -24,6 +24,7 @@ class TrainRequest(BaseModel):
     random_seed: int = Field(42, ge=0, le=999999, description="Random seed for reproducibility")
     test_size: float = Field(0.2, gt=0.05, lt=0.5, description="Fraction of data for testing")
     balance_classes: bool = Field(False, description="Up-weight the minority (diabetes) class")
+    optimize: bool = Field(False, description="Compare centralized predictors by development-only CV, then refit")
     experiment_id: Optional[str] = Field(None, description="Associated experiment ID")
     experiment_name: Optional[str] = Field(None, description="Experiment name")
 
@@ -33,6 +34,7 @@ class TrainResponse(BaseModel):
     model_version: str
     model_type: str
     training_method: str
+    feature_columns: list[str]
     dataset_fingerprint: str
     metrics: dict[str, Any]
     training_config: dict[str, Any]
@@ -60,6 +62,7 @@ class FederatedTrainRequest(BaseModel):
     dp_delta: float = Field(1e-5, gt=0, lt=0.1)
     dp_clip_norm: float = Field(1.0, gt=0, le=100)
     balance_classes: bool = False
+    optimize: bool = Field(False, description="Training-only CV selection followed by full-development refit; IID FedAvg only")
     experiment_id: Optional[str] = None
     experiment_name: Optional[str] = None
 
@@ -69,6 +72,7 @@ class FederatedTrainResponse(BaseModel):
     model_version: Optional[str]
     model_type: str
     training_method: str
+    feature_columns: list[str]
     dataset_fingerprint: str
     metrics: dict[str, Any]
     rounds: list[dict[str, Any]]

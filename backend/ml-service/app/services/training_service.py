@@ -3,7 +3,7 @@
 Implements centralized model training with:
 - PIMA-specific preprocessing (zero→NaN replacement)
 - Median imputation + standard scaling
-- Logistic regression baseline
+- Logistic regression baseline or development-CV-selected prediction model
 - Reproducible train/test splits
 - Full metric computation
 - Model + metadata persistence
@@ -30,9 +30,10 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+from .evaluation_service import EVALUATION_PROTOCOL, VALIDATION_FRACTION, make_evaluation_split
 
 from ..config import (
     MODELS_DIR,
@@ -72,7 +73,7 @@ def compute_metrics(
 
     Handles ROC-AUC safely when only one class is present.
     """
-    cm = confusion_matrix(y_true, y_pred).tolist()
+    cm = confusion_matrix(y_true, y_pred, labels=[0, 1]).tolist()
     report = classification_report(y_true, y_pred, output_dict=True, zero_division=0)
 
     metrics: dict[str, Any] = {
@@ -110,8 +111,9 @@ def train_centralized(
     balance_classes: bool = False,
     experiment_id: Optional[str] = None,
     experiment_name: Optional[str] = None,
+    optimize: bool = False,
 ) -> dict[str, Any]:
-    """Train a centralized logistic regression model on the full dataset.
+    """Train a baseline or CV-selected centralized prediction pipeline.
 
     Steps:
     1. Preprocess (zero→NaN for PIMA columns)
@@ -132,13 +134,15 @@ def train_centralized(
     X = df[PIMA_FEATURE_COLUMNS].values.astype(np.float64)
     y = df[PIMA_TARGET_COLUMN].values.astype(np.int32)
 
-    # 3. Train/test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=test_size,
-        random_state=random_seed,
-        stratify=y,
-    )
+    # Same disjoint train/validation/test indices as federated and local-only.
+    split = make_evaluation_split(y, test_size, random_seed)
+    if optimize:
+        from .evaluation_service import EvaluationSplit
+        split = EvaluationSplit(np.sort(np.concatenate([split.train, split.validation])),
+            np.array([], dtype=int), split.test)
+    X_train, y_train = X[split.train], y[split.train]
+    X_validation, y_validation = X[split.validation], y[split.validation]
+    X_test, y_test = X[split.test], y[split.test]
 
     # 4. Build pipeline (impute → scale → classify)
     pipeline = Pipeline([
@@ -155,7 +159,12 @@ def train_centralized(
     # 5. Fit
     import time
     start_time = time.time()
-    pipeline.fit(X_train, y_train)
+    optimization = None
+    if optimize:
+        from .optimization_service import select_prediction_pipeline
+        pipeline, optimization = select_prediction_pipeline(X_train, y_train, random_seed, objective="f1")
+    else:
+        pipeline.fit(X_train, y_train)
     training_duration = round(time.time() - start_time, 3)
 
     # 6. Evaluate
@@ -164,7 +173,21 @@ def train_centralized(
 
     metrics = compute_metrics(y_true=y_test, y_pred=y_pred, y_proba=y_proba)
     metrics["num_train_samples"] = int(len(X_train))
+    metrics["num_validation_samples"] = int(len(X_validation))
     metrics["num_test_samples"] = int(len(X_test))
+    metrics["evaluation_protocol"] = EVALUATION_PROTOCOL
+    metrics["evaluation_manifest"] = split.manifest()
+    if optimize:
+        metrics["evaluation_protocol"] = optimization["protocol"]
+        metrics["evaluation_manifest"].update(protocol=optimization["protocol"], round_metrics_split="development_cv3_selection",
+            validation_fraction_of_development=0, selection="3-fold CV within development; refit on development")
+        metrics["optimization"] = optimization
+        metrics["validation_metrics"] = {"accuracy": optimization["selected"]["accuracy"],
+            "evaluation_split": "development_cv3_selection", "selection_estimate_only": True}
+    else:
+        metrics["validation_metrics"] = compute_metrics(
+            y_validation, pipeline.predict(X_validation), pipeline.predict_proba(X_validation)[:, 1]
+        )
     metrics["training_duration_seconds"] = training_duration
 
     # Also compute training metrics for loss/convergence tracking
@@ -188,21 +211,24 @@ def train_centralized(
     metadata = {
         "model_id": model_id,
         "model_version": model_version,
-        "model_type": "logistic_regression",
+        "model_type": type(pipeline.named_steps["classifier"]).__name__ if optimize else "logistic_regression",
         "training_method": "centralized",
         "feature_columns": PIMA_FEATURE_COLUMNS,
         "target_column": PIMA_TARGET_COLUMN,
         "preprocessing": {
             "zero_to_nan_columns": PIMA_ZERO_INVALID_COLUMNS,
             "imputer_strategy": "median",
+            "missing_indicators": optimize,
             "scaler": "standard",
         },
         "training_config": {
             "random_seed": random_seed,
             "test_size": test_size,
-            "solver": "lbfgs",
-            "max_iter": 1000,
-            "balance_classes": balance_classes,
+            "selected_estimator": type(pipeline.named_steps["classifier"]).__name__,
+            "optimize": optimize,
+            "balance_classes": bool(pipeline.named_steps["classifier"].get_params().get("class_weight")),
+            "evaluation_protocol": metrics["evaluation_protocol"],
+            "validation_fraction_of_development": 0 if optimize else VALIDATION_FRACTION,
         },
         "dataset_fingerprint": dataset_fingerprint,
         "metrics": metrics,

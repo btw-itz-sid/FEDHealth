@@ -6,6 +6,7 @@ risk predictions with appropriate disclaimers.
 """
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -58,7 +59,11 @@ def load_model(model_id: str) -> tuple[Any, dict[str, Any]]:
     Raises:
         FileNotFoundError: If the model directory or artifacts are missing.
     """
-    model_dir = MODELS_DIR / model_id
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", model_id):
+        raise ValueError("Invalid model identifier")
+    model_dir = (MODELS_DIR / model_id).resolve()
+    if model_dir.parent != MODELS_DIR.resolve():
+        raise ValueError("Invalid model location")
     pipeline_path = model_dir / "pipeline.joblib"
     metadata_path = model_dir / "metadata.json"
 
@@ -113,9 +118,10 @@ def predict(
             X[0, i] = np.nan
 
     # Predict
-    prediction = int(pipeline.predict(X)[0])
+    threshold = metadata.get("decision_threshold")
     probabilities = pipeline.predict_proba(X)[0]
     diabetes_probability = round(float(probabilities[1]), 6)
+    prediction = int(float(probabilities[1]) >= threshold) if threshold is not None else int(pipeline.predict(X)[0])
 
     # Risk level
     if diabetes_probability < 0.3:

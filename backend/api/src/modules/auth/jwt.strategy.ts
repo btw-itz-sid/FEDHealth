@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+import { Request } from 'express';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -8,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 
 interface JwtPayload {
   sub: string;
+  credentialVersion: string;
   email: string;
   role: string;
 }
@@ -20,9 +23,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly userRepository: Repository<User>,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: Request) => req.headers.cookie?.split(';').map(value => value.trim()).find(value => value.startsWith('fedhealth_session='))?.slice('fedhealth_session='.length) || null,
+      ]),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET', 'dev-secret-change-in-production'),
+      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });
   }
 
@@ -31,7 +37,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       where: { id: payload.sub },
     });
 
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || payload.credentialVersion !== createHash("sha256").update(user.passwordHash).digest("hex")) {
       throw new UnauthorizedException('Invalid or deactivated account');
     }
 

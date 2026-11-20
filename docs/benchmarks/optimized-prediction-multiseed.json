@@ -1,0 +1,944 @@
+[
+  {
+    "seed": 7,
+    "metrics": {
+      "accuracy": 0.779221,
+      "precision": 0.672414,
+      "recall": 0.722222,
+      "f1_score": 0.696429,
+      "confusion_matrix": [
+        [
+          81,
+          19
+        ],
+        [
+          15,
+          39
+        ]
+      ],
+      "roc_auc": 0.849074,
+      "per_class": {
+        "0": {
+          "precision": 0.84375,
+          "recall": 0.81,
+          "f1_score": 0.826531,
+          "support": 100
+        },
+        "1": {
+          "precision": 0.672414,
+          "recall": 0.722222,
+          "f1_score": 0.696429,
+          "support": 54
+        }
+      },
+      "num_train_samples": 614,
+      "num_validation_samples": 0,
+      "num_test_samples": 154,
+      "evaluation_protocol": "development_cv3_prediction_v3",
+      "evaluation_manifest": {
+        "protocol": "development_cv3_prediction_v3",
+        "validation_fraction_of_development": 0,
+        "round_metrics_split": "development_cv3_selection",
+        "final_metrics_split": "test",
+        "preprocessing_fit_split": "train",
+        "splits": {
+          "train": {
+            "count": 614,
+            "indices_sha256": "c5ee06708e4642d7187eb5ec6bd3cf4e406e74c79df08db9917e72088bdb3991"
+          },
+          "validation": {
+            "count": 0,
+            "indices_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "test": {
+            "count": 154,
+            "indices_sha256": "e57e4eeed17548865c47a4736e0a53a93bed931a0ea88b4d0563751ac17caa63"
+          }
+        },
+        "selection": "3-fold CV within development; refit on development"
+      },
+      "optimization": {
+        "protocol": "development_cv3_prediction_v3",
+        "selection_split": "development_only_cv3",
+        "test_used_for_selection": false,
+        "objective": "f1",
+        "selected": {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": "balanced",
+            "min_samples_leaf": 8
+          },
+          "accuracy": 0.765455,
+          "roc_auc": 0.830956,
+          "recall": 0.757107,
+          "f1": 0.692371
+        },
+        "candidates": [
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 0.1,
+              "class_weight": null
+            },
+            "accuracy": 0.760617,
+            "roc_auc": 0.829056,
+            "recall": 0.527973,
+            "f1": 0.605615
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 0.1,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.752455,
+            "roc_auc": 0.829667,
+            "recall": 0.70579,
+            "f1": 0.665265
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 1.0,
+              "class_weight": null
+            },
+            "accuracy": 0.772023,
+            "roc_auc": 0.825633,
+            "recall": 0.570162,
+            "f1": 0.635482
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 1.0,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.750837,
+            "roc_auc": 0.825474,
+            "recall": 0.696335,
+            "f1": 0.66101
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 10.0,
+              "class_weight": null
+            },
+            "accuracy": 0.775275,
+            "roc_auc": 0.825213,
+            "recall": 0.579486,
+            "f1": 0.642628
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 10.0,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.749211,
+            "roc_auc": 0.825127,
+            "recall": 0.696335,
+            "f1": 0.659642
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 0.5,
+              "gamma": "scale"
+            },
+            "accuracy": 0.762243,
+            "roc_auc": 0.823787,
+            "recall": 0.481416,
+            "f1": 0.583462
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 0.5,
+              "gamma": 0.03
+            },
+            "accuracy": 0.767129,
+            "roc_auc": 0.826265,
+            "recall": 0.5,
+            "f1": 0.597741
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 1.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.760625,
+            "roc_auc": 0.821096,
+            "recall": 0.528169,
+            "f1": 0.604989
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 1.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.770397,
+            "roc_auc": 0.827673,
+            "recall": 0.528169,
+            "f1": 0.614528
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 3.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.744357,
+            "roc_auc": 0.806885,
+            "recall": 0.542058,
+            "f1": 0.595551
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 3.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.752495,
+            "roc_auc": 0.820205,
+            "recall": 0.532864,
+            "f1": 0.599526
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 10.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.723179,
+            "roc_auc": 0.779226,
+            "recall": 0.560837,
+            "f1": 0.585421
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 10.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.747633,
+            "roc_auc": 0.812664,
+            "recall": 0.546883,
+            "f1": 0.600986
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": null,
+              "min_samples_leaf": 3
+            },
+            "accuracy": 0.758951,
+            "roc_auc": 0.82999,
+            "recall": 0.584246,
+            "f1": 0.627041
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": null,
+              "min_samples_leaf": 8
+            },
+            "accuracy": 0.762195,
+            "roc_auc": 0.833404,
+            "recall": 0.579617,
+            "f1": 0.629089
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": "balanced",
+              "min_samples_leaf": 3
+            },
+            "accuracy": 0.750853,
+            "roc_auc": 0.827401,
+            "recall": 0.71518,
+            "f1": 0.665259
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": "balanced",
+              "min_samples_leaf": 8
+            },
+            "accuracy": 0.765455,
+            "roc_auc": 0.830956,
+            "recall": 0.757107,
+            "f1": 0.692371
+          },
+          {
+            "estimator": "HistGradientBoostingClassifier",
+            "parameters": {
+              "l2_regularization": 1.0
+            },
+            "accuracy": 0.745935,
+            "roc_auc": 0.833469,
+            "recall": 0.579682,
+            "f1": 0.612514
+          },
+          {
+            "estimator": "HistGradientBoostingClassifier",
+            "parameters": {
+              "l2_regularization": 10.0
+            },
+            "accuracy": 0.755731,
+            "roc_auc": 0.828258,
+            "recall": 0.589071,
+            "f1": 0.624769
+          }
+        ]
+      },
+      "validation_metrics": {
+        "accuracy": 0.765455,
+        "evaluation_split": "development_cv3_selection",
+        "selection_estimate_only": true
+      },
+      "training_duration_seconds": 8.791,
+      "train_accuracy": 0.851792,
+      "train_roc_auc": 0.94514
+    },
+    "training_config": {
+      "random_seed": 7,
+      "test_size": 0.2,
+      "selected_estimator": "RandomForestClassifier",
+      "optimize": true,
+      "balance_classes": true,
+      "evaluation_protocol": "development_cv3_prediction_v3",
+      "validation_fraction_of_development": 0
+    }
+  },
+  {
+    "seed": 21,
+    "metrics": {
+      "accuracy": 0.811688,
+      "precision": 0.735849,
+      "recall": 0.722222,
+      "f1_score": 0.728972,
+      "confusion_matrix": [
+        [
+          86,
+          14
+        ],
+        [
+          15,
+          39
+        ]
+      ],
+      "roc_auc": 0.847778,
+      "per_class": {
+        "0": {
+          "precision": 0.851485,
+          "recall": 0.86,
+          "f1_score": 0.855721,
+          "support": 100
+        },
+        "1": {
+          "precision": 0.735849,
+          "recall": 0.722222,
+          "f1_score": 0.728972,
+          "support": 54
+        }
+      },
+      "num_train_samples": 614,
+      "num_validation_samples": 0,
+      "num_test_samples": 154,
+      "evaluation_protocol": "development_cv3_prediction_v3",
+      "evaluation_manifest": {
+        "protocol": "development_cv3_prediction_v3",
+        "validation_fraction_of_development": 0,
+        "round_metrics_split": "development_cv3_selection",
+        "final_metrics_split": "test",
+        "preprocessing_fit_split": "train",
+        "splits": {
+          "train": {
+            "count": 614,
+            "indices_sha256": "efe8a370d2f10d7b460335a2395d9f31f29424881074859947f96db80e5cf099"
+          },
+          "validation": {
+            "count": 0,
+            "indices_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "test": {
+            "count": 154,
+            "indices_sha256": "ff7865230828f902871829e5cab90427ee5d89ed7cf013c96ff20a939c6fe5ef"
+          }
+        },
+        "selection": "3-fold CV within development; refit on development"
+      },
+      "optimization": {
+        "protocol": "development_cv3_prediction_v3",
+        "selection_split": "development_only_cv3",
+        "test_used_for_selection": false,
+        "objective": "f1",
+        "selected": {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": "balanced",
+            "min_samples_leaf": 3
+          },
+          "accuracy": 0.747609,
+          "roc_auc": 0.810378,
+          "recall": 0.710485,
+          "f1": 0.662303
+        },
+        "candidates": [
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 0.1,
+              "class_weight": null
+            },
+            "accuracy": 0.771991,
+            "roc_auc": 0.827484,
+            "recall": 0.565597,
+            "f1": 0.633263
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 0.1,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.739415,
+            "roc_auc": 0.825866,
+            "recall": 0.691445,
+            "f1": 0.649055
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 1.0,
+              "class_weight": null
+            },
+            "accuracy": 0.770365,
+            "roc_auc": 0.823115,
+            "recall": 0.565532,
+            "f1": 0.631749
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 1.0,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.744309,
+            "roc_auc": 0.82184,
+            "recall": 0.696205,
+            "f1": 0.654969
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 10.0,
+              "class_weight": null
+            },
+            "accuracy": 0.770373,
+            "roc_auc": 0.821637,
+            "recall": 0.570227,
+            "f1": 0.633733
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 10.0,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.742675,
+            "roc_auc": 0.820854,
+            "recall": 0.69151,
+            "f1": 0.651946
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 0.5,
+              "gamma": "scale"
+            },
+            "accuracy": 0.758959,
+            "roc_auc": 0.808775,
+            "recall": 0.490676,
+            "f1": 0.586143
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 0.5,
+              "gamma": 0.03
+            },
+            "accuracy": 0.768747,
+            "roc_auc": 0.81897,
+            "recall": 0.546883,
+            "f1": 0.62188
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 1.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.762235,
+            "roc_auc": 0.802295,
+            "recall": 0.551382,
+            "f1": 0.618047
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 1.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.760601,
+            "roc_auc": 0.816343,
+            "recall": 0.542188,
+            "f1": 0.612074
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 3.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.741033,
+            "roc_auc": 0.790218,
+            "recall": 0.546818,
+            "f1": 0.595482
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 3.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.741065,
+            "roc_auc": 0.814709,
+            "recall": 0.518779,
+            "f1": 0.583015
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 10.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.757333,
+            "roc_auc": 0.786601,
+            "recall": 0.5982,
+            "f1": 0.631966
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 10.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.755707,
+            "roc_auc": 0.799556,
+            "recall": 0.556208,
+            "f1": 0.613644
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": null,
+              "min_samples_leaf": 3
+            },
+            "accuracy": 0.752503,
+            "roc_auc": 0.806022,
+            "recall": 0.598266,
+            "f1": 0.627983
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": null,
+              "min_samples_leaf": 8
+            },
+            "accuracy": 0.755739,
+            "roc_auc": 0.814439,
+            "recall": 0.593571,
+            "f1": 0.629056
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": "balanced",
+              "min_samples_leaf": 3
+            },
+            "accuracy": 0.747609,
+            "roc_auc": 0.810378,
+            "recall": 0.710485,
+            "f1": 0.662303
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": "balanced",
+              "min_samples_leaf": 8
+            },
+            "accuracy": 0.744325,
+            "roc_auc": 0.814011,
+            "recall": 0.715115,
+            "f1": 0.660925
+          },
+          {
+            "estimator": "HistGradientBoostingClassifier",
+            "parameters": {
+              "l2_regularization": 1.0
+            },
+            "accuracy": 0.744317,
+            "roc_auc": 0.799262,
+            "recall": 0.5982,
+            "f1": 0.619838
+          },
+          {
+            "estimator": "HistGradientBoostingClassifier",
+            "parameters": {
+              "l2_regularization": 10.0
+            },
+            "accuracy": 0.755739,
+            "roc_auc": 0.807537,
+            "recall": 0.593571,
+            "f1": 0.628486
+          }
+        ]
+      },
+      "validation_metrics": {
+        "accuracy": 0.747609,
+        "evaluation_split": "development_cv3_selection",
+        "selection_estimate_only": true
+      },
+      "training_duration_seconds": 7.197,
+      "train_accuracy": 0.952769,
+      "train_roc_auc": 0.994124
+    },
+    "training_config": {
+      "random_seed": 21,
+      "test_size": 0.2,
+      "selected_estimator": "RandomForestClassifier",
+      "optimize": true,
+      "balance_classes": true,
+      "evaluation_protocol": "development_cv3_prediction_v3",
+      "validation_fraction_of_development": 0
+    }
+  },
+  {
+    "seed": 42,
+    "metrics": {
+      "accuracy": 0.75974,
+      "precision": 0.626866,
+      "recall": 0.777778,
+      "f1_score": 0.694215,
+      "confusion_matrix": [
+        [
+          75,
+          25
+        ],
+        [
+          12,
+          42
+        ]
+      ],
+      "roc_auc": 0.832407,
+      "per_class": {
+        "0": {
+          "precision": 0.862069,
+          "recall": 0.75,
+          "f1_score": 0.802139,
+          "support": 100
+        },
+        "1": {
+          "precision": 0.626866,
+          "recall": 0.777778,
+          "f1_score": 0.694215,
+          "support": 54
+        }
+      },
+      "num_train_samples": 614,
+      "num_validation_samples": 0,
+      "num_test_samples": 154,
+      "evaluation_protocol": "development_cv3_prediction_v3",
+      "evaluation_manifest": {
+        "protocol": "development_cv3_prediction_v3",
+        "validation_fraction_of_development": 0,
+        "round_metrics_split": "development_cv3_selection",
+        "final_metrics_split": "test",
+        "preprocessing_fit_split": "train",
+        "splits": {
+          "train": {
+            "count": 614,
+            "indices_sha256": "beca94d1e9c31a3fba0bd4979e601e1fe85d0461edf0453e1bc5ac3901c89612"
+          },
+          "validation": {
+            "count": 0,
+            "indices_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "test": {
+            "count": 154,
+            "indices_sha256": "6f1e42657bd8da9155db9b91d377375a188123e004664bf97950138d73a494a2"
+          }
+        },
+        "selection": "3-fold CV within development; refit on development"
+      },
+      "optimization": {
+        "protocol": "development_cv3_prediction_v3",
+        "selection_split": "development_only_cv3",
+        "test_used_for_selection": false,
+        "objective": "f1",
+        "selected": {
+          "estimator": "RandomForestClassifier",
+          "parameters": {
+            "class_weight": "balanced",
+            "min_samples_leaf": 8
+          },
+          "accuracy": 0.760633,
+          "roc_auc": 0.838241,
+          "recall": 0.756781,
+          "f1": 0.686763
+        },
+        "candidates": [
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 0.1,
+              "class_weight": null
+            },
+            "accuracy": 0.788275,
+            "roc_auc": 0.844564,
+            "recall": 0.588419,
+            "f1": 0.658709
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 0.1,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.758935,
+            "roc_auc": 0.844741,
+            "recall": 0.709898,
+            "f1": 0.671356
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 1.0,
+              "class_weight": null
+            },
+            "accuracy": 0.786673,
+            "roc_auc": 0.8407,
+            "recall": 0.593114,
+            "f1": 0.658258
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 1.0,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.750781,
+            "roc_auc": 0.842912,
+            "recall": 0.700574,
+            "f1": 0.661411
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 10.0,
+              "class_weight": null
+            },
+            "accuracy": 0.783421,
+            "roc_auc": 0.840173,
+            "recall": 0.593114,
+            "f1": 0.654639
+          },
+          {
+            "estimator": "LogisticRegression",
+            "parameters": {
+              "C": 10.0,
+              "class_weight": "balanced"
+            },
+            "accuracy": 0.750781,
+            "roc_auc": 0.841924,
+            "recall": 0.700574,
+            "f1": 0.661411
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 0.5,
+              "gamma": "scale"
+            },
+            "accuracy": 0.755739,
+            "roc_auc": 0.819999,
+            "recall": 0.52367,
+            "f1": 0.598668
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 0.5,
+              "gamma": 0.03
+            },
+            "accuracy": 0.757365,
+            "roc_auc": 0.831797,
+            "recall": 0.513954,
+            "f1": 0.596452
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 1.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.762251,
+            "roc_auc": 0.819632,
+            "recall": 0.551643,
+            "f1": 0.617483
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 1.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.768755,
+            "roc_auc": 0.831,
+            "recall": 0.556142,
+            "f1": 0.626344
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 3.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.747561,
+            "roc_auc": 0.805936,
+            "recall": 0.560837,
+            "f1": 0.60697
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 3.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.752495,
+            "roc_auc": 0.822487,
+            "recall": 0.528169,
+            "f1": 0.597128
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 10.0,
+              "gamma": "scale"
+            },
+            "accuracy": 0.728025,
+            "roc_auc": 0.776294,
+            "recall": 0.579421,
+            "f1": 0.596696
+          },
+          {
+            "estimator": "SVC",
+            "parameters": {
+              "C": 10.0,
+              "gamma": 0.03
+            },
+            "accuracy": 0.745951,
+            "roc_auc": 0.800618,
+            "recall": 0.537363,
+            "f1": 0.595251
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": null,
+              "min_samples_leaf": 3
+            },
+            "accuracy": 0.783413,
+            "roc_auc": 0.838644,
+            "recall": 0.612024,
+            "f1": 0.663351
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": null,
+              "min_samples_leaf": 8
+            },
+            "accuracy": 0.773649,
+            "roc_auc": 0.840694,
+            "recall": 0.5982,
+            "f1": 0.648337
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": "balanced",
+              "min_samples_leaf": 3
+            },
+            "accuracy": 0.765511,
+            "roc_auc": 0.832164,
+            "recall": 0.728678,
+            "f1": 0.683337
+          },
+          {
+            "estimator": "RandomForestClassifier",
+            "parameters": {
+              "class_weight": "balanced",
+              "min_samples_leaf": 8
+            },
+            "accuracy": 0.760633,
+            "roc_auc": 0.838241,
+            "recall": 0.756781,
+            "f1": 0.686763
+          },
+          {
+            "estimator": "HistGradientBoostingClassifier",
+            "parameters": {
+              "l2_regularization": 1.0
+            },
+            "accuracy": 0.762251,
+            "roc_auc": 0.830954,
+            "recall": 0.607394,
+            "f1": 0.640714
+          },
+          {
+            "estimator": "HistGradientBoostingClassifier",
+            "parameters": {
+              "l2_regularization": 10.0
+            },
+            "accuracy": 0.767129,
+            "roc_auc": 0.837461,
+            "recall": 0.607394,
+            "f1": 0.645108
+          }
+        ]
+      },
+      "validation_metrics": {
+        "accuracy": 0.760633,
+        "evaluation_split": "development_cv3_selection",
+        "selection_estimate_only": true
+      },
+      "training_duration_seconds": 7.098,
+      "train_accuracy": 0.851792,
+      "train_roc_auc": 0.946694
+    },
+    "training_config": {
+      "random_seed": 42,
+      "test_size": 0.2,
+      "selected_estimator": "RandomForestClassifier",
+      "optimize": true,
+      "balance_classes": true,
+      "evaluation_protocol": "development_cv3_prediction_v3",
+      "validation_fraction_of_development": 0
+    }
+  }
+]

@@ -18,7 +18,7 @@ router = APIRouter()
     response_model=PredictionResponse,
     summary="Get diabetes risk prediction",
 )
-async def make_prediction(request: PredictionRequest):
+def make_prediction(request: PredictionRequest):
     """Submit patient features for diabetes risk prediction.
 
     Uses the specified model or the latest available model.
@@ -52,7 +52,7 @@ async def make_prediction(request: PredictionRequest):
     response_model=ModelListResponse,
     summary="List available trained models",
 )
-async def list_models():
+def list_models():
     """List all trained models that are ready for inference."""
     models_data = get_available_models()
     models = [

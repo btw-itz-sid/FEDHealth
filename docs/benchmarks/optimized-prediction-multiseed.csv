@@ -1,0 +1,4 @@
+seed,method,estimator,selection_objective,development_samples,test_samples,test_split_sha256,accuracy,precision,recall,f1_score,roc_auc
+7,centralized,RandomForestClassifier,f1,614,154,e57e4eeed17548865c47a4736e0a53a93bed931a0ea88b4d0563751ac17caa63,0.779221,0.672414,0.722222,0.696429,0.849074
+21,centralized,RandomForestClassifier,f1,614,154,ff7865230828f902871829e5cab90427ee5d89ed7cf013c96ff20a939c6fe5ef,0.811688,0.735849,0.722222,0.728972,0.847778
+42,centralized,RandomForestClassifier,f1,614,154,6f1e42657bd8da9155db9b91d377375a188123e004664bf97950138d73a494a2,0.75974,0.626866,0.777778,0.694215,0.832407

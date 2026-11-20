@@ -60,6 +60,9 @@ desktop.ini
 .coverage
 htmlcov/
 .pytest_cache/
+.pytest*_tmp/
+.pytest_tmp/
+.jest-cache/
 coverage/
 
 # Logs

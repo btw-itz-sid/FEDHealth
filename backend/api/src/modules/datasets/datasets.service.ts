@@ -1,3 +1,5 @@
+import { enumFilter, pagination } from '../../config/query-validation';
+import { mlRequestOptions } from '../../config/security';
 import {
   Injectable,
   BadRequestException,
@@ -34,7 +36,9 @@ export class DatasetsService {
     userId: string,
   ) {
     // Validate file type
-    if (!file.originalname.endsWith('.csv')) {
+    if (!file) throw new BadRequestException('Choose a CSV file to upload');
+    if (typeof name !== 'string' || !name.trim() || name.length > 200 || typeof description !== 'string' || description.length > 2000) throw new BadRequestException('Dataset name is required (up to 200 characters); description must be at most 2000 characters');
+    if (!file.originalname.toLowerCase().endsWith('.csv')) {
       throw new BadRequestException('Only CSV files are accepted');
     }
 
@@ -44,8 +48,8 @@ export class DatasetsService {
     }
 
     const dataset = this.datasetRepository.create({
-      name,
-      description,
+      name: name.trim(),
+      description: description.trim(),
       filename: file.originalname,
       filepath: file.path,
       fileSize: file.size,
@@ -68,7 +72,8 @@ export class DatasetsService {
       console.error(`Dataset validation failed for ${saved.id}:`, err.message);
     });
 
-    return saved;
+    const { filepath, ...publicDataset } = saved;
+    return publicDataset;
   }
 
   private async validateDatasetAsync(datasetId: string) {
@@ -83,7 +88,7 @@ export class DatasetsService {
     try {
       const response = await fetch(
         `${this.mlServiceUrl}/api/v1/ml/datasets/validate-local?filename=${encodeURIComponent(basename(dataset.filepath))}`,
-        { method: 'POST' },
+        { ...mlRequestOptions(this.configService, 60000), method: 'POST' },
       );
 
       if (!response.ok) {
@@ -120,8 +125,8 @@ export class DatasetsService {
   }
 
   async findAll(options: { page?: number; limit?: number; userId?: string }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 20, 100);
+    const { page, limit } = pagination(options);
+
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -136,7 +141,7 @@ export class DatasetsService {
       take: limit,
     });
 
-    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return { items: items.map(({ filepath, ...dataset }) => dataset), total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: string) {
@@ -148,7 +153,8 @@ export class DatasetsService {
       throw new NotFoundException('Dataset not found');
     }
 
-    return dataset;
+    const { filepath, ...publicDataset } = dataset;
+    return publicDataset;
   }
 
   async getValidation(id: string) {

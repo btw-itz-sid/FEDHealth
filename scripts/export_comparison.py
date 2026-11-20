@@ -103,17 +103,19 @@ def to_row(e: dict) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--api", default=os.getenv("FEDHEALTH_API", "http://localhost:3001/api/v1"))
-    parser.add_argument("--email", default="researcher@fedhealth.dev")
-    parser.add_argument("--password", default=os.getenv("FEDHEALTH_RESEARCHER_PASSWORD", "ResearchPass123!"))
+    parser.add_argument("--email", default=os.getenv("FEDHEALTH_RESEARCHER_EMAIL"))
+    parser.add_argument("--password", default=os.getenv("FEDHEALTH_RESEARCHER_PASSWORD"))
     parser.add_argument("--out", default=str(ROOT / "docs" / "fedhealth-comparison.csv"))
     args = parser.parse_args()
+    if not args.email or not args.password:
+        parser.error("Set FEDHEALTH_RESEARCHER_EMAIL and FEDHEALTH_RESEARCHER_PASSWORD, or provide --email and --password")
 
-    client = httpx.Client(base_url=args.api, timeout=60)
+    client = httpx.Client(base_url=args.api, timeout=60, headers={"X-FedHealth-Client": "web"})
     login = client.post("/auth/login", json={"email": args.email, "password": args.password})
     if login.status_code not in (200, 201):
         print(f"Login failed ({login.status_code}): {login.text}")
         return 1
-    client.headers["Authorization"] = f"Bearer {login.json()['accessToken']}"
+    # httpx retains the HttpOnly session cookie for subsequent API calls.
 
     items = client.get("/experiments", params={"limit": 100}).json()["items"]
     latest: dict[str, dict] = {}

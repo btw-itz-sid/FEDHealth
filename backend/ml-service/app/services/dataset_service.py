@@ -103,6 +103,20 @@ def validate_dataset(df: pd.DataFrame) -> DatasetValidationResult:
     if not result.is_valid:
         return result
 
+    if np.isinf(df[expected_columns].to_numpy(dtype=float)).any():
+        result.is_valid = False
+        result.errors.append("Infinite values are not allowed")
+        return result
+    if df[PIMA_TARGET_COLUMN].isna().any():
+        result.is_valid = False
+        result.errors.append("Every row must have an Outcome label (0 or 1)")
+        return result
+    empty_features = [col for col in PIMA_FEATURE_COLUMNS if df[col].isna().all() or (col in PIMA_ZERO_INVALID_COLUMNS and df[col].fillna(0).eq(0).all())]
+    if empty_features:
+        result.is_valid = False
+        result.errors.append(f"Features contain no usable measurements: {empty_features}")
+        return result
+
     # ---- Binary target ----
     unique_targets = sorted(df[PIMA_TARGET_COLUMN].dropna().unique().tolist())
     if not set(unique_targets).issubset({0, 1, 0.0, 1.0}):
@@ -111,6 +125,11 @@ def validate_dataset(df: pd.DataFrame) -> DatasetValidationResult:
             f"Target column '{PIMA_TARGET_COLUMN}' must be binary (0/1), "
             f"found unique values: {unique_targets}"
         )
+        return result
+
+    if set(unique_targets) != {0, 1}:
+        result.is_valid = False
+        result.errors.append("Both Outcome classes (0 and 1) are required")
         return result
 
     # ---- NaN values ----
@@ -132,9 +151,11 @@ def validate_dataset(df: pd.DataFrame) -> DatasetValidationResult:
                 )
 
     # ---- Duplicates ----
-    duplicate_count = int(df.duplicated().sum())
+    duplicate_count = int(df.duplicated(subset=expected_columns).sum())
     if duplicate_count > 0:
         result.warnings.append(f"Found {duplicate_count} duplicate rows")
+        result.errors.append("Remove duplicate measurement and Outcome rows before training to prevent train/test leakage")
+        result.is_valid = False
 
     # ---- Range checks (warnings only) ----
     range_checks: dict[str, tuple[float, float]] = {
@@ -168,7 +189,7 @@ def validate_dataset(df: pd.DataFrame) -> DatasetValidationResult:
             series = df[col].dropna()
             feature_stats[col] = {
                 "mean": round(float(series.mean()), 4),
-                "std": round(float(series.std()), 4),
+                "std": round(float(series.std(ddof=0)), 4),
                 "min": round(float(series.min()), 4),
                 "max": round(float(series.max()), 4),
                 "median": round(float(series.median()), 4),

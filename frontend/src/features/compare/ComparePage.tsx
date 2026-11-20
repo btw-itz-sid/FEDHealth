@@ -4,6 +4,9 @@ import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import api from '@/lib/api';
+import PageHeader from '@/components/ui/PageHeader';
+import Icon from '@/components/ui/Icon';
+import { evaluationKey } from '@/lib/evaluation';
 import { CHART_COLORS, downloadFile, methodLabel, num, pct, toCsv } from '@/lib/format';
 
 const METRICS = [
@@ -33,11 +36,13 @@ function findings(all: any[]): string[] {
   const localIid = pick('local_only', 'iid');
 
   if (central && fedIid) {
-    out.push(`FedAvg (IID) reaches ${pct(acc(fedIid))} accuracy vs. ${pct(acc(central))} centralized — ${((acc(fedIid) / acc(central)) * 100).toFixed(1)}% of the baseline without pooling raw data.`);
+    out.push(`In these selected runs, FedAvg (IID) test accuracy is ${pct(acc(fedIid))} and centralized test accuracy is ${pct(acc(central))}. These are measured research results, not clinical accuracy claims.`);
   }
   if (fedIid && fedNon) {
     const diff = (acc(fedIid) - acc(fedNon)) * 100;
-    out.push(`Non-IID client data changes FedAvg accuracy by ${diff >= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)} points relative to IID.`);
+    out.push(Math.abs(diff) < 0.05
+      ? 'IID and non-IID FedAvg have the same test accuracy to one decimal place in these runs; compare recall and F1 as well.'
+      : `Non-IID client data changes FedAvg accuracy by ${diff >= 0 ? '−' : '+'}${Math.abs(diff).toFixed(1)} points relative to IID.`);
   }
   if (fedNon && localNon) {
     const diff = (acc(fedNon) - acc(localNon)) * 100;
@@ -64,14 +69,18 @@ export default function ComparePage() {
   const [all, setAll] = useState<any[]>([]);
   const [loaded, setLoaded] = useState<Loaded[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [includeLegacy, setIncludeLegacy] = useState(false);
 
   useEffect(() => {
-    api.getExperiments(1, 100).then((r) => setAll(r.items || [])).catch(() => {});
+    api.getExperiments(1, 100).then((r) => { setAll(r.items || []); if (!params.get('ids')) { const latest = (r.items || []).find((e: any) => e.status === 'completed'); if (latest) setParams({ids:latest.id}, {replace:true}); } }).catch((error: Error) => setError(error.message));
   }, []);
 
   useEffect(() => {
     if (ids.length === 0) { setLoaded([]); setLoading(false); return; }
-    setLoading(true);
+    let current = true;
+    setLoading(true); setError('');
     Promise.all(ids.map(async (id) => {
       const [experiment, rounds] = await Promise.all([
         api.getExperiment(id),
@@ -79,12 +88,19 @@ export default function ComparePage() {
       ]);
       return { experiment, rounds };
     }))
-      .then(setLoaded)
-      .catch(() => setLoaded([]))
-      .finally(() => setLoading(false));
+      .then((result) => { if(current) setLoaded(result); })
+      .catch((error: Error) => { if(current) { setLoaded([]); setError(error.message); } })
+      .finally(() => { if(current) setLoading(false); });
+    return () => { current = false; };
   }, [ids]);
 
   const completed = all.filter((e) => e.status === 'completed');
+  const hasModern = completed.some((e) => e.finalMetrics?.evaluation_protocol);
+  const candidates = completed.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()) && (includeLegacy || !hasModern || e.finalMetrics?.evaluation_protocol || ids.includes(e.id)));
+  const comparable = new Set(loaded.map((l) => evaluationKey(l.experiment))).size <= 1
+    && new Set(loaded.filter((l) => l.experiment.trainingMethod !== 'centralized').map(({ experiment: e }) =>
+      JSON.stringify([e.numClients, e.numRounds, e.localEpochs, e.learningRate, e.batchSize]),
+    )).size <= 1;
 
   const toggle = (id: string) => {
     const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
@@ -128,7 +144,16 @@ export default function ComparePage() {
   });
   const singleRound = loaded.filter((l) => l.rounds.length <= 1 && l.experiment.finalMetrics);
 
-  const dpCurve = completed
+  const selectedExperiments = loaded.map((l) => l.experiment);
+  const dpReference = selectedExperiments.find((e) => e.differentialPrivacy);
+  const sameDpSetup = (e: any) => dpReference && evaluationKey(e) === evaluationKey(dpReference)
+    && e.partitionType === dpReference.partitionType && e.numClients === dpReference.numClients
+    && e.numRounds === dpReference.numRounds && e.localEpochs === dpReference.localEpochs
+    && e.learningRate === dpReference.learningRate && e.batchSize === dpReference.batchSize
+    && (!e.differentialPrivacy || (e.dpConfig?.delta === dpReference.dpConfig?.delta
+      && e.dpConfig?.clipNorm === dpReference.dpConfig?.clipNorm));
+  const dpCurve = selectedExperiments
+    .filter(sameDpSetup)
     .filter((e) => e.differentialPrivacy && e.dpConfig?.epsilon != null && e.finalMetrics)
     .sort((a, b) => a.dpConfig.epsilon - b.dpConfig.epsilon)
     .map((e) => ({
@@ -136,9 +161,9 @@ export default function ComparePage() {
       accuracy: e.finalMetrics.accuracy,
       auc: e.finalMetrics.roc_auc,
     }));
-  const noDpFed = completed.find((e) => e.trainingMethod === 'fedavg' && !e.differentialPrivacy && e.partitionType === 'iid');
+  const noDpFed = selectedExperiments.find((e) => e.trainingMethod === 'fedavg' && !e.differentialPrivacy && sameDpSetup(e));
 
-  const keyFindings = findings(all);
+  const keyFindings = comparable ? findings(selectedExperiments) : [];
 
   const exportCsv = () => {
     downloadFile('fedhealth-comparison.csv', toCsv(loaded.map(({ experiment: e }) => ({
@@ -155,21 +180,20 @@ export default function ComparePage() {
       total_epsilon: e.finalMetrics?.privacy?.cumulative_epsilon ?? '',
       communication_kb: e.finalMetrics?.total_communication_bytes != null ? (e.finalMetrics.total_communication_bytes / 1024).toFixed(1) : '',
       seed: e.randomSeed,
+      evaluation_protocol: e.finalMetrics?.evaluation_protocol ?? 'legacy_train_test_v1',
+      train_samples: e.finalMetrics?.num_train_samples,
+      validation_samples: e.finalMetrics?.num_validation_samples ?? '',
+      test_samples: e.finalMetrics?.num_test_samples,
     }))), 'text/csv');
   };
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Compare Experiments</h1>
-          <p className="text-sm text-[var(--color-text-secondary)]">All methods are evaluated on the same held-out test split (same seed and test size).</p>
-        </div>
-        {loaded.length > 0 && <button onClick={exportCsv} className="btn-secondary">Export CSV</button>}
-      </div>
+      <PageHeader eyebrow="Research / Evaluation" title="Model results" description="See how the latest model performed on records kept apart from training." actions={loaded.length > 0 ? <button onClick={exportCsv} className="btn-secondary"><Icon name="download" size={16}/>Export comparison</button> : undefined} />
 
-      {keyFindings.length > 0 && (
-        <div className="card mb-6 border-[var(--color-primary-200)] bg-[var(--color-primary-50)]">
+      {error && <div className="form-feedback" role="alert">{error}</div>}
+      {!loading && keyFindings.length > 0 && (
+        <div className="card mb-6">
           <h2 className="text-sm font-semibold text-[var(--color-primary-800)] uppercase tracking-wider mb-2">Key findings</h2>
           <ul className="list-disc pl-5 space-y-1 text-sm text-[var(--color-primary-900)]">
             {keyFindings.map((f) => <li key={f}>{f}</li>)}
@@ -177,25 +201,13 @@ export default function ComparePage() {
         </div>
       )}
 
-      <div className="card mb-6">
-        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Select experiments</h2>
-        {completed.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-muted)]">No completed experiments yet. <Link to="/experiments" className="text-[var(--color-primary-600)] underline">Run some first</Link>.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {completed.map((e) => (
-              <label key={e.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs cursor-pointer ${ids.includes(e.id) ? 'border-[var(--color-primary-500)] bg-[var(--color-primary-50)]' : 'border-[var(--color-border)]'}`}>
-                <input type="checkbox" checked={ids.includes(e.id)} onChange={() => toggle(e.id)} />
-                {e.name}
-              </label>
-            ))}
-            {completed.length > 1 && (
-              <button className="text-xs text-[var(--color-primary-600)] hover:underline ml-2"
-                onClick={() => setParams({ ids: completed.map((e) => e.id).join(',') })}>Select all</button>
-            )}
-          </div>
-        )}
-      </div>
+      {!loading && loaded.length===1 && <section className="card mb-6"><span className="badge badge-neutral">{methodLabel(loaded[0].experiment)}</span><h2 className="text-xl font-medium mt-4">{loaded[0].experiment.name}</h2><div className="grid grid-cols-3 gap-4 my-7">{[{key:'accuracy',label:'Accuracy',text:'Share of test records classified correctly.'},{key:'recall',label:'Recall',text:'Share of positive cases identified.'},{key:'f1_score',label:'F1 score',text:'Balance between precision and recall.'}].map(metric=><div key={metric.key}><p className="text-sm text-[var(--color-text-muted)]">{metric.label}</p><p className="text-3xl my-2">{metric.key==='f1_score'?num(loaded[0].experiment.finalMetrics?.[metric.key],3):pct(loaded[0].experiment.finalMetrics?.[metric.key])}</p><p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{metric.text}</p></div>)}</div><p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">Measured on {loaded[0].experiment.finalMetrics?.num_test_samples??'held-out'} test records. {loaded[0].experiment.finalMetrics?.optimization?'Configuration was chosen with development-data cross-validation, then refit before final test scoring.':'Training and final test records are separate.'}</p><div className="flex flex-wrap gap-3 mt-6"><Link to="/assess" className="btn-primary">Try an assessment</Link><Link to={`/experiments/${loaded[0].experiment.id}`} className="btn-secondary">View training evidence</Link></div></section>}
+      <details open={ids.length>1}><summary className="text-sm font-medium cursor-pointer py-4">Advanced: compare runs, charts and confusion matrices</summary>
+      <section className="card mb-6">
+        <div className="section-heading"><div><h2>Choose the evidence</h2><p>{ids.length} selected · match dataset, seed, class balancing and training settings</p></div>{ids.length>0&&<button className="btn-quiet" onClick={()=>setParams({})}>Clear selection</button>}</div>
+        <div className="table-toolbar"><label className="search-field"><Icon name="search" size={16}/><input aria-label="Search comparison experiments" placeholder="Find a completed run" value={search} onChange={(event)=>setSearch(event.target.value)}/></label><label className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]"><input type="checkbox" checked={includeLegacy} onChange={(event)=>setIncludeLegacy(event.target.checked)}/>Include legacy runs</label></div>
+        {candidates.length?<div className="max-h-64 overflow-auto"><table><thead><tr className="text-left"><th className="w-8"></th><th>Completed experiment</th><th>Protocol</th><th>Test accuracy</th></tr></thead><tbody>{candidates.map((exp)=><tr key={exp.id} className="border-b border-[var(--color-border)] last:border-0"><td><input type="checkbox" id={`compare-${exp.id}`} aria-label={`Compare ${exp.name} (${exp.id.slice(0,6)})`} checked={ids.includes(exp.id)} onChange={()=>toggle(exp.id)}/></td><td className="pr-4"><label className="cursor-pointer text-sm" htmlFor={`compare-${exp.id}`}>{exp.name}</label></td><td><span className="badge badge-neutral">{exp.finalMetrics?.evaluation_protocol?.includes('cv3')?'CV + test':exp.finalMetrics?.evaluation_protocol?'v2':'Legacy'}</span></td><td className="tabular-nums">{pct(exp.finalMetrics?.accuracy)}</td></tr>)}</tbody></table></div>:<div className="empty-state"><Icon name="chart" size={26}/><h3>No matching completed runs</h3><p>Run the comparison suite, or adjust the filters.</p><Link className="btn-secondary" to="/experiments">Open experiments</Link></div>}
+      </section>
 
       {loading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary-600)]"></div></div>
@@ -203,6 +215,7 @@ export default function ComparePage() {
         <div className="card text-center py-12 text-[var(--color-text-muted)]">Select at least one experiment to compare.</div>
       ) : (
         <>
+          {!comparable && <div className="card mb-6 text-sm bg-amber-50 text-amber-900" role="alert">These runs use different datasets, seeds, class balancing, evaluation splits or local training settings. Values are shown for inspection; automatic findings and best-score highlights are disabled. Re-run the methods with matching settings for a fair comparison.</div>}
           <div className="card mb-6 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -224,7 +237,7 @@ export default function ComparePage() {
                     <td className="py-3 px-2 text-xs">{methodLabel(e)}</td>
                     {METRICS.map(({ key }) => {
                       const v = e.finalMetrics?.[key];
-                      const isBest = v != null && loaded.length > 1 && v === best[key];
+                      const isBest = comparable && v != null && loaded.length > 1 && v === best[key];
                       return (
                         <td key={key} className={`py-3 px-2 ${isBest ? 'font-bold text-[var(--color-success)]' : ''}`}>
                           {key === 'accuracy' ? pct(v) : num(v, 3)}
@@ -259,7 +272,7 @@ export default function ComparePage() {
             </div>
 
             <div className="card">
-              <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Accuracy per round</h2>
+              <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Validation accuracy per round (test for legacy runs)</h2>
               {maxRounds > 1 ? (
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
@@ -270,7 +283,7 @@ export default function ComparePage() {
                       <Tooltip formatter={(v: number) => v?.toFixed(4)} />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       {singleRound.map((l) => (
-                        <ReferenceLine key={l.experiment.id} y={l.experiment.finalMetrics.accuracy} stroke="#0f172a" strokeDasharray="5 5"
+                        <ReferenceLine key={l.experiment.id} y={l.experiment.finalMetrics.validation_metrics?.accuracy ?? l.experiment.finalMetrics.accuracy} stroke="#0f172a" strokeDasharray="5 5"
                           label={{ value: seriesName(l), fontSize: 10, position: 'insideTopRight' }} />
                       ))}
                       {loaded.map((l, i) => l.rounds.length > 1 && (
@@ -311,7 +324,7 @@ export default function ComparePage() {
       {dpCurve.length >= 2 && (
         <div className="card mb-6">
           <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1">Privacy–utility trade-off</h2>
-          <p className="text-xs text-[var(--color-text-muted)] mb-3">All completed FedAvg + DP experiments. Lower ε = stronger privacy.</p>
+          <p className="text-xs text-[var(--color-text-muted)] mb-3">Selected runs with matching data, evaluation, partition and optimizer settings. Smaller ε adds more noise in this educational mechanism; it is not a certified privacy guarantee.</p>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dpCurve}>
@@ -325,13 +338,14 @@ export default function ComparePage() {
                   <ReferenceLine y={noDpFed.finalMetrics.accuracy} stroke="#64748b" strokeDasharray="5 5"
                     label={{ value: 'FedAvg without DP', fontSize: 10, position: 'insideBottomRight' }} />
                 )}
-                <Line type="monotone" dataKey="accuracy" name="Accuracy" stroke="#2563eb" strokeWidth={2} />
-                <Line type="monotone" dataKey="auc" name="ROC-AUC" stroke="#f59e0b" strokeWidth={2} />
+                <Line type="monotone" dataKey="accuracy" name="Accuracy" stroke="#3d6c63" strokeWidth={2} />
+                <Line type="monotone" dataKey="auc" name="ROC-AUC" stroke="#a28c61" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
+      </details>
     </div>
   );
 }

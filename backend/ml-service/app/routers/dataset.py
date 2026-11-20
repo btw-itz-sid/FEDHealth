@@ -46,10 +46,12 @@ async def validate_uploaded_dataset(file: UploadFile = File(...)):
     try:
         upload_path.parent.mkdir(parents=True, exist_ok=True)
         with open(upload_path, "wb") as f:
-            content = await file.read()
-            if len(content) > 50 * 1024 * 1024:  # 50 MB
-                raise HTTPException(status_code=413, detail="File exceeds 50 MB limit")
-            f.write(content)
+            total = 0
+            while chunk := await file.read(1024 * 1024):
+                total += len(chunk)
+                if total > 50 * 1024 * 1024:
+                    raise HTTPException(status_code=413, detail="File exceeds 50 MB limit")
+                f.write(chunk)
 
         df = load_csv(upload_path)
         result = validate_dataset(df)
@@ -79,7 +81,7 @@ async def validate_uploaded_dataset(file: UploadFile = File(...)):
     response_model=DatasetValidationResponse,
     summary="Validate the local dataset file",
 )
-async def validate_local_dataset(filename: str = "diabetes.csv"):
+def validate_local_dataset(filename: str = "diabetes.csv"):
     """Validate a dataset already present in data/uploads or data/."""
     try:
         df = load_csv(resolve_dataset_path(filename))

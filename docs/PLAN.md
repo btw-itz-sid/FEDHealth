@@ -1,3 +1,23 @@
+# Application readiness update — 20 November 2026
+
+The immediate scope is the working application and the student's explanation. Report/PPT are handled by a teammate.
+
+Completed in this update:
+- Rebuilt the architecture diagram around common zero initialization, local SGD, explicit deltas/counts and sample-weighted aggregation.
+- Added a separate aggregator contract and full numerical traces for fresh FedAvg rounds; the browser independently reconstructs all nine parameters.
+- Added a worked local learning step and a clearly labeled example that works before experiments exist.
+- Added a shared train/validation/test protocol, train-only preprocessing, split hashes, legacy labels and incompatible-comparison warnings.
+- Fixed default experiment form step-validation errors, including learning-rate and noise-setting fields.
+- Verified 66 ML tests, 7 API unit tests and both builds; performed a fresh browser training run and completed the nine-run v2 demo suite. Added missing-artifact checks before model activation.
+- Executed 54 isolated multi-seed benchmark runs and recorded measured results under `docs/benchmarks/`.
+- Added `docs/VIVA_GUIDE.md` for the application explanation and demo.
+
+Deployment limitations remain explicit: in-memory job dispatch, no restart recovery/cooperative cancellation, no real remote hospital clients, pooled training preprocessing, seeded noise without a certified privacy guarantee, and cloud database connectivity. Production migrations and hosting are not marked complete by this update. These are separate from the verified local examination demo.
+
+The earlier plan below is historical context. Its old two-way evaluation results and completion claims do not describe protocol v2.
+
+---
+
 # FedHealth — Web-Only Project Plan
 
 FedHealth is a single **web application** (React + Vite) backed by a NestJS API, a FastAPI ML service, and a Python federated-learning simulator. There is no mobile app. Every role — patient, researcher, admin — uses the same web app, with pages gated by role.

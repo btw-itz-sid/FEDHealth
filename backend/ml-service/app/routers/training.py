@@ -1,6 +1,8 @@
 """FedHealth ML Service — Training router"""
 
-from fastapi import APIRouter, HTTPException
+import os
+from threading import Lock
+from fastapi import APIRouter, Depends, HTTPException
 import pandas as pd
 
 from ..schemas.schemas import (
@@ -13,7 +15,19 @@ from ..services.dataset_service import load_csv, resolve_dataset_path, validate_
 from ..services.federated_service import train_federated
 from ..services.training_service import train_centralized
 
-router = APIRouter()
+training_lock = Lock()
+
+
+def training_slot():
+    if not training_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Another training run is still in progress. Try again after it finishes.")
+    try:
+        yield
+    finally:
+        training_lock.release()
+
+
+router = APIRouter(dependencies=[Depends(training_slot)])
 
 
 def _load_validated_dataset(dataset_path: str | None) -> pd.DataFrame:
@@ -22,6 +36,10 @@ def _load_validated_dataset(dataset_path: str | None) -> pd.DataFrame:
     except (FileNotFoundError, ValueError) as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
+    if len(df) > int(os.getenv("MAX_TRAINING_ROWS", "10000")):
+        raise HTTPException(status_code=400, detail="Dataset exceeds this deployment's training row limit")
+    if "Outcome" in df and df["Outcome"].value_counts().min() < 20:
+        raise HTTPException(status_code=400, detail="Training requires at least 20 labeled records per Outcome class")
     validation = validate_dataset(df)
     if not validation.is_valid:
         raise HTTPException(
@@ -34,9 +52,9 @@ def _load_validated_dataset(dataset_path: str | None) -> pd.DataFrame:
 @router.post(
     "/train/centralized",
     response_model=TrainResponse,
-    summary="Train a centralized baseline model",
+    summary="Train a centralized baseline or CV-selected predictor",
 )
-async def train_centralized_model(request: TrainRequest):
+def train_centralized_model(request: TrainRequest):
     """Train a logistic regression model on the full dataset (centralized baseline).
 
     Steps:
@@ -57,6 +75,7 @@ async def train_centralized_model(request: TrainRequest):
             random_seed=request.random_seed,
             test_size=request.test_size,
             balance_classes=request.balance_classes,
+            optimize=request.optimize,
             experiment_id=request.experiment_id,
             experiment_name=request.experiment_name,
         )
@@ -66,12 +85,15 @@ async def train_centralized_model(request: TrainRequest):
             model_version=result["model_version"],
             model_type=result["model_type"],
             training_method=result["training_method"],
+            feature_columns=result["feature_columns"],
             dataset_fingerprint=result["dataset_fingerprint"],
             metrics=result["metrics"],
             training_config=result["training_config"],
             created_at=result["created_at"],
             status=result["status"],
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(
             status_code=500,
@@ -84,15 +106,16 @@ async def train_centralized_model(request: TrainRequest):
     response_model=FederatedTrainResponse,
     summary="Run a FedAvg or local-only simulation",
 )
-async def train_federated_model(request: FederatedTrainRequest):
+def train_federated_model(request: FederatedTrainRequest):
     """Simulate federated training across partitioned clients.
 
     - fedavg: clients train locally from the global weights each round and the
       server averages their updates (optionally with differential privacy).
     - local_only: clients never share anything; metrics are averaged across clients.
 
-    Every round is evaluated on the same held-out test split as the
-    centralized baseline.
+    Rounds use validation data. Test data is evaluated only after training.
+    This synchronous route runs in FastAPI's thread pool so training does not
+    block the event loop used by health checks and prediction requests.
     """
     df = _load_validated_dataset(request.dataset_path)
 
@@ -113,6 +136,7 @@ async def train_federated_model(request: FederatedTrainRequest):
             dp_delta=request.dp_delta,
             dp_clip_norm=request.dp_clip_norm,
             balance_classes=request.balance_classes,
+            optimize=request.optimize,
             experiment_id=request.experiment_id,
             experiment_name=request.experiment_name,
         )

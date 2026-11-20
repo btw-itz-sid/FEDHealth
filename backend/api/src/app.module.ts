@@ -1,3 +1,5 @@
+import { databaseConnection } from './database/data-source';
+import { validateEnvironment } from './config/security';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -18,6 +20,7 @@ import { HealthModule } from './modules/health/health.module';
     // Environment config
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnvironment,
       envFilePath: ['.env', '../../.env'],
     }),
 
@@ -27,8 +30,7 @@ import { HealthModule } from './modules/health/health.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        url: config.get<string>('DATABASE_URL'),
-        ssl: { rejectUnauthorized: false },
+        ...databaseConnection(config.getOrThrow<string>('DATABASE_URL')),
         autoLoadEntities: true,
         synchronize: config.get('NODE_ENV') === 'development',
         logging: config.get('NODE_ENV') === 'development' ? ['error', 'warn'] : ['error'],

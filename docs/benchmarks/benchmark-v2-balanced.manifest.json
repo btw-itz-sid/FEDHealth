@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-11-20T11:40:11.546802+00:00",
+  "dataset_fingerprint": "936def97acdee499",
+  "config": {
+    "seeds": [
+      7,
+      21,
+      42
+    ],
+    "rounds": 10,
+    "clients": 5,
+    "local_epochs": 5,
+    "balanced": true,
+    "learning_rate": 0.1,
+    "batch_size": 32,
+    "test_fraction": 0.2,
+    "epsilon_per_round": [
+      0.5,
+      1,
+      5,
+      10
+    ],
+    "delta_per_round": 1e-05,
+    "clip_norm": 1
+  },
+  "evaluation_manifests": {
+    "7": {
+      "protocol": "stratified_train_validation_test_v2",
+      "validation_fraction_of_development": 0.2,
+      "round_metrics_split": "validation",
+      "final_metrics_split": "test",
+      "preprocessing_fit_split": "train",
+      "splits": {
+        "train": {
+          "count": 491,
+          "indices_sha256": "1f459a9b9d6398e339dc76855e3824b58853a9f66a51c016b7e265e763d10f70"
+        },
+        "validation": {
+          "count": 123,
+          "indices_sha256": "9c41120947d8764f601c01daa609e3b549ad9ac5ebb823fc184a1abb3b95fb63"
+        },
+        "test": {
+          "count": 154,
+          "indices_sha256": "e57e4eeed17548865c47a4736e0a53a93bed931a0ea88b4d0563751ac17caa63"
+        }
+      }
+    },
+    "21": {
+      "protocol": "stratified_train_validation_test_v2",
+      "validation_fraction_of_development": 0.2,
+      "round_metrics_split": "validation",
+      "final_metrics_split": "test",
+      "preprocessing_fit_split": "train",
+      "splits": {
+        "train": {
+          "count": 491,
+          "indices_sha256": "1d088c328db911389221efd8f684462e439a5e90b0e873ec3524177dc147f5e7"
+        },
+        "validation": {
+          "count": 123,
+          "indices_sha256": "5d389aa8f72f7aa48f9d90f4cdf489904168da71a8adb8d5a3a6aa1c64fd9d35"
+        },
+        "test": {
+          "count": 154,
+          "indices_sha256": "ff7865230828f902871829e5cab90427ee5d89ed7cf013c96ff20a939c6fe5ef"
+        }
+      }
+    },
+    "42": {
+      "protocol": "stratified_train_validation_test_v2",
+      "validation_fraction_of_development": 0.2,
+      "round_metrics_split": "validation",
+      "final_metrics_split": "test",
+      "preprocessing_fit_split": "train",
+      "splits": {
+        "train": {
+          "count": 491,
+          "indices_sha256": "be6989a3dc9f52573573f83ade889ecf9d9033d9ea68e7bde95910b3152faaaf"
+        },
+        "validation": {
+          "count": 123,
+          "indices_sha256": "fe65242ffa551a84157faf1e79bdd8ef503651d5f40267d77b3d278c33cd5093"
+        },
+        "test": {
+          "count": 154,
+          "indices_sha256": "6f1e42657bd8da9155db9b91d377375a188123e004664bf97950138d73a494a2"
+        }
+      }
+    }
+  },
+  "privacy_note": "Seeded update noise is an educational mechanism, not certified DP.",
+  "statistics_note": "Seeds vary holdout splits. Report mean and sample standard deviation as descriptive variability, not a confidence interval."
+}

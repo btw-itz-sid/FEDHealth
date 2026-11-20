@@ -1,85 +1,75 @@
-# FedHealth — Federated Learning Research Notes
+# FedHealth — measured research results (protocol v2)
 
-## Background
+Generated and verified on 20 November 2026. These are public-data research estimates, not clinical results.
 
-### What is Federated Learning?
-Federated Learning (FL) is a machine learning paradigm where multiple clients collaboratively train a model without sharing their raw data. Instead:
+## What was actually run
 
-1. A central server sends the current global model to all clients
-2. Each client trains the model on its local data
-3. Clients send model updates (not raw data) back to the server
-4. The server aggregates updates to improve the global model
-5. This process repeats for multiple communication rounds
+The runner `scripts/run_research_benchmark.py` executed 54 runs: 9 setups × 3 seeds × 2 class-balancing settings. Seeds: 7, 21, 42. Each federated/local-only run used 5 clients, 10 rounds, 5 local epochs, learning rate 0.1 and batch size 32. Non-IID partitioning uses Dirichlet label skew, alpha 0.5.
 
-### Why is FL relevant for diabetes prediction?
-- Patient health data is sensitive and regulated (HIPAA, GDPR)
-- Hospitals cannot freely share patient records
-- FL enables collaborative model training across institutions
-- Privacy is preserved because raw data never leaves the local site
+Every method uses the same stratified split for a given seed: **491 training / 123 validation / 154 test** on 768 records. Imputation and scaling fit training data only. Round monitoring uses validation; final test scoring occurs after the fixed training schedule. The runner verifies that all methods have identical split manifests for each seed.
 
-## Algorithms Implemented
+Raw results:
 
-### FedAvg (Federated Averaging)
-- **Paper:** McMahan et al., 2017 — "Communication-Efficient Learning of Deep Networks from Decentralized Data"
-- **Method:** Weighted average of client model parameters, weights proportional to dataset size
-- **Advantage:** Simple, communication-efficient, works well for IID data
+- [Unweighted 27 runs](benchmarks/benchmark-v2.csv)
+- [Balanced 27 runs](benchmarks/benchmark-v2-balanced.csv)
+- [Unweighted configuration and split hashes](benchmarks/benchmark-v2.manifest.json)
+- [Balanced configuration and split hashes](benchmarks/benchmark-v2-balanced.manifest.json)
 
-### Data Partitioning Strategies
+These files contain aggregate results, not patient records. Benchmark artifacts are created temporarily and do not change the application's active model. The web benchmark suite defaults to **20 rounds**, so reproduce with the same rounds/settings before comparing it to the 10-round CLI results below.
 
-| Strategy | Description | Real-World Analog |
-|----------|-------------|-------------------|
-| **IID** | Random uniform split across clients | Each hospital sees similar patient demographics |
-| **Non-IID** | Sorted by label, shards assigned to clients | Hospitals specialize (e.g., one sees mostly diabetic patients) |
+## Results across three seeds
 
-### Differential Privacy
-- **Mechanism:** Gaussian noise addition to model updates
-- **Components:**
-  - **Gradient clipping:** Bounds sensitivity of individual contributions
-  - **Noise calibration:** σ = sensitivity × √(2 ln(1.25/δ)) / ε
-  - **Privacy accounting:** Tracks cumulative (ε, δ) budget consumption
+Mean ± sample standard deviation of test accuracy. Recall, F1 and ROC-AUC are the mean over the three seeds. This describes variability across overlapping random holdouts; it is not a confidence interval or evidence of clinical generalization.
 
-## Measured Results
+| Setup | Unweighted accuracy | Balanced accuracy | Balanced recall | Balanced F1 | Balanced ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Centralized | 0.7424 ± 0.0327 | 0.7381 ± 0.0198 | 0.6667 | 0.6406 | 0.8283 |
+| FedAvg IID | 0.7359 ± 0.0487 | 0.7316 ± 0.0075 | 0.6790 | 0.6388 | 0.8303 |
+| FedAvg non-IID | 0.7229 ± 0.0075 | 0.7424 ± 0.0135 | 0.5000 | 0.5725 | 0.8259 |
+| Local-only IID | 0.7364 ± 0.0204 | 0.7247 ± 0.0189 | 0.6765 | 0.6322 | 0.8133 |
+| Local-only non-IID | 0.6385 ± 0.0369 | 0.6164 ± 0.0364 | 0.6160 | 0.4366 | 0.8060 |
+| FedAvg IID + noise, epsilon 0.5/round | 0.5996 ± 0.1155 | 0.6017 ± 0.1129 | 0.5556 | 0.4957 | 0.5930 |
+| FedAvg IID + noise, epsilon 1/round | 0.6234 ± 0.0749 | 0.6082 ± 0.0865 | 0.5617 | 0.5009 | 0.6293 |
+| FedAvg IID + noise, epsilon 5/round | 0.7056 ± 0.0637 | 0.7100 ± 0.0617 | 0.6049 | 0.5902 | 0.7438 |
+| FedAvg IID + noise, epsilon 10/round | 0.7164 ± 0.0492 | 0.7186 ± 0.0470 | 0.6049 | 0.5987 | 0.7871 |
 
-All eighteen experiments use the same held-out split: seed 42, 20% test, 614 train / 154 test. Each benchmark was run twice: once with the standard (unweighted) loss, once with class balancing. Full table: `docs/fedhealth-comparison.csv`, regenerated with `scripts/export_comparison.py`.
+## Findings that the measurements support
 
-| Experiment | Unweighted Acc | Recall | F1 | ROC-AUC | Balanced Acc | Recall | F1 | ROC-AUC |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Centralized baseline | 0.708 | 0.500 | 0.545 | 0.813 | 0.734 | 0.704 | 0.650 | 0.813 |
-| FedAvg IID | 0.695 | 0.500 | 0.535 | 0.811 | 0.727 | 0.685 | 0.638 | 0.811 |
-| FedAvg Non-IID | 0.714 | 0.519 | 0.560 | 0.812 | 0.714 | 0.630 | 0.607 | 0.810 |
-| Local only IID (mean of 5) | 0.718 | 0.515 | 0.560 | 0.796 | 0.714 | 0.667 | 0.621 | 0.795 |
-| Local only Non-IID (mean of 5) | 0.642 | 0.500 | 0.424 | 0.771 | 0.642 | 0.559 | 0.465 | 0.772 |
-| FedAvg IID + DP ε=0.5 (cumulative ε=10) | 0.630 | 0.611 | 0.537 | 0.657 | 0.623 | 0.630 | 0.540 | 0.666 |
-| FedAvg IID + DP ε=1 (cumulative ε=20) | 0.649 | 0.556 | 0.526 | 0.701 | 0.636 | 0.611 | 0.541 | 0.710 |
-| FedAvg IID + DP ε=5 (cumulative ε=100) | 0.682 | 0.519 | 0.533 | 0.769 | 0.708 | 0.630 | 0.602 | 0.772 |
-| FedAvg IID + DP ε=10 (cumulative ε=200) | 0.714 | 0.519 | 0.560 | 0.791 | 0.708 | 0.593 | 0.587 | 0.795 |
+- Balanced FedAvg IID has mean test accuracy 0.7316 versus centralized 0.7381: a difference of -0.65 percentage points in this run configuration. It is not guaranteed to match or outperform centralized training.
+- In the balanced non-IID setup, FedAvg accuracy exceeds the local-only mean by 12.60 percentage points. The stronger comparison also needs recall/F1: local-only recall is higher here but its F1 is lower. Do not summarize every metric as an improvement.
+- Balancing increases FedAvg IID mean recall from 0.5309 to 0.6790 in these runs. Accuracy falls slightly, illustrating why accuracy alone is insufficient.
+- Larger seeded noise generally reduces utility in the reported mean results. Individual seeds need not change monotonically. Nominal epsilon values are experimental controls, not certified privacy budgets.
+- Standard deviation varies substantially with setup. A single favorable seed would conceal this variation.
 
-FedAvg IID reaches 98–99% of the centralized accuracy without pooling raw records. On non-IID data, FedAvg beats clients training alone by 7 accuracy points and about 14 F1 points. Stronger privacy (lower ε per round) costs accuracy and ROC-AUC. Local-only confusion matrices in the CSV are the sum of five clients scored on the same test set, not a single 154-row matrix.
+## Limitations to say clearly in the viva
 
-### Class balancing
+1. Hospital clients are simulated partitions in one ML service, not real independent hospitals.
+2. Training preprocessing statistics and balancing priors use the pooled training split; fully decentralized preprocessing is not implemented.
+3. Local-only averages metrics across independent models. Its summed confusion matrix counts the shared test set once per client; it is not one ensemble's confusion matrix.
+4. Centralized uses L-BFGS with sklearn's default regularization; clients use mini-batch SGD with L2 penalty 1e-4. The experiment compares these implementations rather than isolating communication alone.
+5. Gaussian clipping/noise uses a reproducible seed, with unprotected metadata and diagnostics. Do not claim a patient-level DP guarantee, secure aggregation or regulatory compliance.
+6. PIMA is small and population-specific. No external clinical validation was conducted.
+7. Hyperparameters are fixed here. Future tuning must use training/validation only, followed by a predeclared final evaluation; do not repeatedly tune against the test figures in this document.
 
-Only 35% of records are diabetic, so the unweighted model under-predicts the positive class and misses half the diabetic patients in the test set (recall 0.50). Class balancing weights each training sample by `n / (2 · n_class)`, using the pooled training-split prevalence, so every method optimises the same objective. Centralized uses scikit-learn's `class_weight="balanced"`; FedAvg and local-only apply the same weights inside each client's SGD step.
+## Reproduce
 
-The decision was made with 5-fold cross-validation on the training split only (recall 0.575 → 0.701, F1 0.655 → 0.672, ROC-AUC 0.843 → 0.844), before the held-out results above were produced. On the test set, balancing raises recall by 11–20 points for centralized and FedAvg, without changing ROC-AUC. The model ranks patients the same way, but its decision threshold moves towards catching more cases. Precision stays about the same (0.60 → 0.60 centralized), so the extra positives are mostly true diabetic cases.
+From the repository root in PowerShell:
 
-### Would more data help?
+```powershell
+.\backend\ml-service\.venv\Scripts\python.exe scripts/run_research_benchmark.py
+.\backend\ml-service\.venv\Scripts\python.exe scripts/run_research_benchmark.py --balanced --output docs/benchmarks/benchmark-v2-balanced.csv
+```
 
-A learning curve on the training split (5-fold CV, logistic regression) shows validation ROC-AUC rising from 0.803 at 98 rows to 0.838 at about 300 rows, then flattening (0.843 at 491 rows), with train and validation scores close together. The model is limited by the 8 features and the linear decision boundary, not by the number of rows. More PIMA-style records would add little. A meaningful jump would need richer features (for example HbA1c), which means a different dataset and patient form.
+Use `--rounds 20 --output docs/benchmarks/benchmark-v2-20rounds.csv` to match the web suite's default schedule. This will create a separate result file rather than replacing the reported 10-round data.
 
-These are research estimates on 768 records. They are not clinically valid.
+## Historical results
 
-## Dataset: PIMA Indians Diabetes
+The later accuracy/simplicity follow-up is recorded in [MODEL_IMPROVEMENT.md](MODEL_IMPROVEMENT.md). Its centralized CV/refit protocol uses 614 development records and is deliberately separate from this fixed 491/123/154 federated benchmark. Do not merge the two tables as a controlled algorithm-only comparison.
 
-- **Source:** National Institute of Diabetes and Digestive and Kidney Diseases
-- **Samples:** 768 females of Pima Indian heritage, age ≥ 21
-- **Features:** 8 health measurements (Glucose, BMI, Age, etc.)
-- **Target:** Binary (0 = no diabetes, 1 = diabetes)
-- **Class balance:** ~35% positive (diabetes)
-- **Known issues:** Zero values in Glucose, BP, etc. represent missing data
+Experiments saved before this update used a two-way 614/154 split and monitored test every round. They remain visible in the app as legacy runs. Their scores are not directly comparable to protocol v2, which trains on fewer rows and uses independent validation. No old result was silently relabeled as a new measurement.
 
-## References
+## Primary references
 
-1. McMahan, H. B., et al. (2017). "Communication-Efficient Learning of Deep Networks from Decentralized Data." AISTATS.
-2. Kairouz, P., et al. (2021). "Advances and Open Problems in Federated Learning." Foundations and Trends in ML.
-3. Dwork, C. & Roth, A. (2014). "The Algorithmic Foundations of Differential Privacy." Foundations and Trends in TCS.
-4. Smith, J. W., et al. (1988). "Using the ADAP Learning Algorithm to Forecast the Onset of Diabetes Mellitus." SCAMC.
+- [McMahan et al. (2017), FedAvg](https://proceedings.mlr.press/v54/mcmahan17a.html).
+- [scikit-learn, avoiding preprocessing and evaluation leakage](https://scikit-learn.org/stable/common_pitfalls.html).
+- [Zhu et al. (2019), Deep Leakage from Gradients](https://arxiv.org/abs/1906.08935).

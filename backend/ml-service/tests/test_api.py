@@ -129,6 +129,10 @@ def test_fedavg_train_and_predict(isolated_dirs, partition):
     assert len(result["rounds"]) == 4
     assert len(result["clients"]) == 3
     assert result["model_id"].startswith("fedavg_")
+    assert result["feature_columns"] == PIMA_COLUMNS[:-1]
+    assert result["metrics"]["num_validation_samples"] > 0
+    assert result["rounds"][0]["eval_metrics"]["evaluation_split"] == "validation"
+    assert result["rounds"][0]["eval_metrics"]["federation_trace"]["global_before"] == [0] * 9
 
     response = client.post("/api/v1/ml/predict", json={**PATIENT, "model_id": result["model_id"]})
     assert response.status_code == 200, response.text

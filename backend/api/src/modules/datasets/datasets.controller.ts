@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   Get,
@@ -15,7 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiConsumes,
   ApiBody,
   ApiQuery,
@@ -23,7 +24,7 @@ import {
 import { diskStorage } from 'multer';
 import { mkdirSync } from 'fs';
 import { extname, resolve } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { DatasetsService } from './datasets.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
@@ -37,7 +38,7 @@ function datasetUploadDir(): string {
 @ApiTags('Datasets')
 @Controller('datasets')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
+@ApiCookieAuth()
 export class DatasetsController {
   constructor(private readonly datasetsService: DatasetsService) {}
 
@@ -54,14 +55,14 @@ export class DatasetsController {
         },
         filename: (_req, file, cb) => {
           // Sanitize: use UUID, never trust original filename for storage
-          const safeName = `${uuidv4()}${extname(file.originalname)}`;
+          const safeName = `${randomUUID()}${extname(file.originalname)}`;
           cb(null, safeName);
         },
       }),
       limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
       fileFilter: (_req, file, cb) => {
         if (!file.originalname.match(/\.csv$/i)) {
-          return cb(new Error('Only CSV files are allowed'), false);
+          return cb(new BadRequestException('Only CSV files are allowed'), false);
         }
         cb(null, true);
       },
@@ -85,6 +86,7 @@ export class DatasetsController {
     @Body('description') description: string,
     @Req() req: Request,
   ) {
+    if (!file) throw new BadRequestException('Choose a CSV file to upload');
     return this.datasetsService.create(
       file,
       name || file.originalname,

@@ -1,3 +1,5 @@
+import { enumFilter, pagination } from '../../config/query-validation';
+import { mlRequestOptions } from '../../config/security';
 import {
   Injectable,
   BadRequestException,
@@ -31,13 +33,16 @@ export class PredictionsService {
   }
 
   async create(dto: CreatePredictionDto, userId: string) {
-    const modelId = dto.modelId || (await this.modelsService.getActive())?.modelId || null;
+    const active = await this.modelsService.getActive();
+    if (!active || active.status !== 'ready') throw new ServiceUnavailableException('Assessments are temporarily unavailable because no active model is ready.');
+    if (dto.modelId && dto.modelId !== active.modelId) throw new BadRequestException('Assessments use the current active model. Refresh the page and try again.');
+    const modelId = active.modelId;
 
     let mlResponse: Response;
     try {
       mlResponse = await fetch(`${this.mlServiceUrl}/api/v1/ml/predict`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        ...mlRequestOptions(this.configService),
         body: JSON.stringify({
           Pregnancies: dto.Pregnancies,
           Glucose: dto.Glucose,
@@ -55,10 +60,7 @@ export class PredictionsService {
     }
 
     if (!mlResponse.ok) {
-      const error = await mlResponse.json().catch(() => ({}));
-      throw new BadRequestException(
-        error.detail || 'ML service prediction failed',
-      );
+      throw new ServiceUnavailableException('The assessment model is temporarily unavailable. Please try again later.');
     }
 
     const mlResult = await mlResponse.json();
@@ -98,8 +100,8 @@ export class PredictionsService {
   }
 
   async findAllByUser(userId: string, options: { page?: number; limit?: number }) {
-    const page = options.page || 1;
-    const limit = Math.min(options.limit || 20, 100);
+    const { page, limit } = pagination(options);
+
     const skip = (page - 1) * limit;
 
     const [items, total] = await this.predictionRepository.findAndCount({
