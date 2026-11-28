@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import RecoveryKeyCard from '@/components/RecoveryKeyCard';
 import AuthLayout from '@/components/layout/AuthLayout';
 import Icon from '@/components/ui/Icon';
 
@@ -8,13 +9,15 @@ export default function RegisterPage() {
   const { register, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
+  const [recoveryCode, setRecoveryCode] = useState('');
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  if (isAuthenticated) return <Navigate to="/" replace />;
+  if (recoveryCode) return <AuthLayout><RecoveryKeyCard code={recoveryCode} onContinue={() => navigate('/', { replace: true })}/></AuthLayout>;
+  if (isAuthenticated && !loading) return <Navigate to="/" replace />;
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setError(''); setLoading(true);
-    try { await register({ ...form, email: form.email.trim(), firstName: form.firstName.trim(), lastName: form.lastName.trim() }); navigate('/', { replace: true }); }
+    try { const code = await register({ ...form, email: form.email.trim(), firstName: form.firstName.trim(), lastName: form.lastName.trim() }); setRecoveryCode(code); }
     catch (error) { setError(error instanceof Error ? error.message : 'We could not create your account.'); }
     finally { setLoading(false); }
   };

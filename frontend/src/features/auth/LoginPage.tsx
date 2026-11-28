@@ -23,6 +23,7 @@ export default function LoginPage() {
     <p className="eyebrow">Your research workspace</p>
     <h1>Welcome back.</h1>
     <p className="auth-intro">Sign in to continue your research, explore a training run, or review an assessment.</p>
+    <p className="mb-5 text-sm"><Link to="/recover" className="section-link">Forgot your password?</Link></p>
     {error && <div className="form-feedback" role="alert">{error}</div>}
     <form onSubmit={submit} className="space-y-5">
       <div><label className="label" htmlFor="login-email">Email address</label><input id="login-email" className="input" type="email" autoComplete="email" placeholder="you@institution.edu" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} /></div>

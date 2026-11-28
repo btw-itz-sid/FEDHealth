@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import LoginPage from '@/features/auth/LoginPage';
 import RegisterPage from '@/features/auth/RegisterPage';
+const PrivacyPage = lazy(() => import('@/features/privacy/PrivacyPage'));
+const RecoverPage = lazy(() => import('@/features/auth/RecoverPage'));
 const OverviewPage = lazy(() => import('@/features/overview/OverviewPage'));
 const DatasetsPage = lazy(() => import('@/features/datasets/DatasetsPage'));
 const ExperimentsPage = lazy(() => import('@/features/experiments/ExperimentsPage'));
@@ -16,7 +18,7 @@ const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'));
 const ComparePage = lazy(() => import('@/features/compare/ComparePage'));
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, connectionError, retrySession } = useAuth();
 
   if (isLoading) {
     return (
@@ -25,6 +27,8 @@ function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?
       </div>
     );
   }
+
+  if (connectionError) return <div className="min-h-screen flex items-center justify-center p-6"><div className="card max-w-md"><h1 className="text-xl font-medium">Unable to connect</h1><p className="my-4" role="alert">The service may be waking up. Please try again in a moment.</p><button className="btn-primary" onClick={retrySession}>Try again</button></div></div>;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -41,6 +45,8 @@ export default function App() {
   return (
     <Suspense fallback={<div className="p-8" role="status">Loading workspace…</div>}><Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/recover" element={<RecoverPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route
         path="/"

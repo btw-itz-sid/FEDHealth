@@ -2,19 +2,22 @@ import { enumFilter, pagination } from '../../config/query-validation';
 import { mlRequestOptions } from '../../config/security';
 import {
   Injectable,
+  OnModuleInit,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { basename } from 'path';
+import { basename, join, resolve } from 'path';
+import { readFile, unlink } from 'fs/promises';
+import { writeAtomically } from '../../config/persistent-files';
 import { Dataset, DatasetStatus } from './entities/dataset.entity';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 
 @Injectable()
-export class DatasetsService {
+export class DatasetsService implements OnModuleInit {
   private readonly mlServiceUrl: string;
 
   constructor(
@@ -27,6 +30,18 @@ export class DatasetsService {
       'ML_SERVICE_URL',
       'http://localhost:8000',
     );
+  }
+
+  async onModuleInit() {
+    if (this.configService.get('ARTIFACT_STORAGE') !== 'database') return;
+    const datasets = await this.datasetRepository.createQueryBuilder('dataset').addSelect('dataset.csvBytes')
+      .where('dataset.csvBytes IS NOT NULL').getMany();
+    for (const dataset of datasets) {
+      const filepath = join(resolve(process.env.DATASET_UPLOAD_DIR || '../../data/uploads'), `${dataset.id}.csv`);
+      await writeAtomically(filepath, dataset.csvBytes!);
+      await this.datasetRepository.update(dataset.id, { filepath });
+      if ([DatasetStatus.PENDING, DatasetStatus.VALIDATING].includes(dataset.status)) await this.validateDatasetAsync(dataset.id);
+    }
   }
 
   async create(
@@ -42,12 +57,26 @@ export class DatasetsService {
       throw new BadRequestException('Only CSV files are accepted');
     }
 
-    // Validate file size (50MB max)
-    if (file.size > 50 * 1024 * 1024) {
-      throw new BadRequestException('File size exceeds 50MB limit');
+    // Keep uploads small enough for the free staging server.
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('File size exceeds 5MB limit');
     }
 
+    let csvBytes: Buffer | undefined;
+    if (this.configService.get('ARTIFACT_STORAGE') === 'database') {
+      csvBytes = await readFile(file.path);
+      if (csvBytes.length > 5 * 1024 * 1024) {
+        await unlink(file.path);
+        throw new BadRequestException('CSV exceeds the 5 MB staging upload limit');
+      }
+      const [usage] = await this.datasetRepository.query('SELECT COALESCE(SUM(octet_length("csvBytes")), 0)::bigint AS bytes FROM datasets');
+      if (Number(usage.bytes) + csvBytes.length > 25 * 1024 * 1024) {
+        await unlink(file.path);
+        throw new BadRequestException('The staging dataset storage quota is full');
+      }
+    }
     const dataset = this.datasetRepository.create({
+      csvBytes,
       name: name.trim(),
       description: description.trim(),
       filename: file.originalname,
@@ -72,7 +101,7 @@ export class DatasetsService {
       console.error(`Dataset validation failed for ${saved.id}:`, err.message);
     });
 
-    const { filepath, ...publicDataset } = saved;
+    const { filepath, csvBytes: storedBytes, ...publicDataset } = saved;
     return publicDataset;
   }
 

@@ -1,5 +1,7 @@
 # Public deployment candidate
 
+For the selected free staging/demo setup, follow [FREE_STAGING.md](FREE_STAGING.md). The instructions below describe the separate paid single-server profile.
+
 This repository has a portable single-server deployment configuration. It has **not** been deployed to a public URL. Docker is unavailable on the current development machine, so image builds, fresh-database migration execution, HTTPS and volume restore still require a staging run.
 
 ## Service layout

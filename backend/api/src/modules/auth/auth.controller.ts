@@ -19,7 +19,7 @@ export class AuthController {
   async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.register(dto, req.ip);
     res.cookie('fedhealth_session', result.accessToken, sessionOptions());
-    return { user: result.user };
+    return { user: result.user, recoveryCode: result.recoveryCode };
   }
 
   @Post('login')

@@ -27,6 +27,9 @@ export class User {
   @Column()
   passwordHash: string;
 
+  @Column({ type: 'varchar', nullable: true, select: false })
+  recoveryCodeHash: string | null;
+
   @Column()
   firstName: string;
 

@@ -19,6 +19,12 @@ export class MlModel {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'bytea', nullable: true, select: false })
+  artifactBytes: Buffer | null;
+
+  @Column({ type: 'jsonb', nullable: true, select: false })
+  artifactMetadata: Record<string, any> | null;
+
   @Column()
   modelId: string;  // ML service model identifier
 

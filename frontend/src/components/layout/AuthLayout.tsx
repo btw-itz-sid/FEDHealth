@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import Brand from '@/components/ui/Brand';
 
@@ -18,6 +19,6 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </div>
       <div className="auth-story-footer"><span>Public-data research simulation</span><span>Built to make the learning visible.</span></div>
     </aside>
-    <main className="auth-form-side"><div className="auth-form"><div className="mobile-brand"><Brand /></div>{children}</div></main>
+    <main className="auth-form-side"><div className="auth-form"><div className="mobile-brand"><Brand /></div>{children}<p className="mt-6 text-xs text-[var(--color-text-muted)]"><Link to="/privacy" className="underline">Data & privacy</Link></p></div></main>
   </div>;
 }

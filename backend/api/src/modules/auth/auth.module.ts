@@ -1,3 +1,5 @@
+import { AccountController } from './account.controller';
+import { AccountService } from './account.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
@@ -25,8 +27,8 @@ import { AuditModule } from '../audit/audit.module';
     }),
     AuditModule,
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController, AccountController],
+  providers: [AuthService, JwtStrategy, AccountService],
   exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}

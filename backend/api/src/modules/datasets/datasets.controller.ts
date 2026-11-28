@@ -59,7 +59,7 @@ export class DatasetsController {
           cb(null, safeName);
         },
       }),
-      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
       fileFilter: (_req, file, cb) => {
         if (!file.originalname.match(/\.csv$/i)) {
           return cb(new BadRequestException('Only CSV files are allowed'), false);

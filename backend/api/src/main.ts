@@ -3,6 +3,9 @@ import { browserSecurity } from './config/browser-security';
 // in process-local time, so the process must run in UTC to round-trip correctly.
 process.env.TZ = 'UTC';
 
+import { Request, Response, NextFunction } from 'express';
+import { serveFrontend } from './config/serve-frontend';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -10,10 +13,19 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Account, recovery and assessment responses must not be cached.
+  app.use('/api', (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cache-Control', 'no-store'); next();
+  });
 
   // Security
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: { directives: {
+    defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    fontSrc: ["'self'", 'https://fonts.gstatic.com'], imgSrc: ["'self'", 'data:'], connectSrc: ["'self'"],
+    frameAncestors: ["'none'"], formAction: ["'self'"],
+  } } }));
   app.enableShutdownHooks();
   if (process.env.TRUST_PROXY === '1') app.getHttpAdapter().getInstance().set('trust proxy', 1);
   const allowedOrigins = [...new Set([...(process.env.CORS_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean), ...(process.env.NODE_ENV === 'production' ? [] : ['http://localhost:5173', 'http://127.0.0.1:5173'])])];
@@ -59,6 +71,9 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
+  if (process.env.SERVE_FRONTEND === 'true') {
+    serveFrontend(app);
+  }
   const port = process.env.API_PORT || 3001;
   await app.listen(port);
   console.log(`🏥 FedHealth API running on http://localhost:${port}`);

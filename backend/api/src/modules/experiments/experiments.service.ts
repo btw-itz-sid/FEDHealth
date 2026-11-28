@@ -3,6 +3,7 @@ import { mlRequestOptions } from '../../config/security';
 import {
   Injectable,
   OnModuleInit,
+  OnApplicationBootstrap,
   OnModuleDestroy,
   ForbiddenException,
   NotFoundException,
@@ -28,7 +29,7 @@ import { CreateExperimentDto } from './dto/experiment.dto';
 const DP_DEFAULTS = { epsilon: 1.0, delta: 1e-5, clipNorm: 1.0 };
 
 @Injectable()
-export class ExperimentsService implements OnModuleInit, OnModuleDestroy {
+export class ExperimentsService implements OnModuleInit, OnModuleDestroy, OnApplicationBootstrap {
   private worker?: ReturnType<typeof setTimeout>;
   private working = false;
   private stopping = false;
@@ -111,8 +112,9 @@ export class ExperimentsService implements OnModuleInit, OnModuleDestroy {
       status: ExperimentStatus.FAILED, completedAt: new Date(),
       errorMessage: 'Training was interrupted by a service restart. Start a new run to retry.',
     });
-    this.scheduleWork();
   }
+
+  onApplicationBootstrap() { this.scheduleWork(); }
 
   onModuleDestroy() { this.stopping = true; if (this.worker) clearTimeout(this.worker); }
 

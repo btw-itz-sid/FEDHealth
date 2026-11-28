@@ -8,8 +8,9 @@ interface User {
 interface Registration { email: string; password: string; firstName: string; lastName: string }
 interface AuthContextType {
   user: User | null; isLoading: boolean; isAuthenticated: boolean;
+  connectionError: string; retrySession: () => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: Registration) => Promise<void>;
+  register: (data: Registration) => Promise<string>;
   logout: () => Promise<void>;
 }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,14 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).finally(() => { if (current) setIsLoading(false); });
     return () => { current = false; };
   }, [retry]);
-  const login = async (email: string, password: string) => { const result = await api.login({ email, password }); setUser(result.user); };
-  const register = async (data: Registration) => { const result = await api.register(data); setUser(result.user); };
+  const login = async (email: string, password: string) => { const result = await api.login({ email, password }); setError(''); setUser(result.user); };
+  const register = async (data: Registration) => { const result = await api.register(data); setError(''); setUser(result.user); return result.recoveryCode; };
   const logout = async () => {
     try { await api.logout(); setUser(null); }
     catch (failure) { setError(failure instanceof Error ? failure.message : 'Could not sign out. Please try again.'); }
   };
-  if (error) return <div className="min-h-screen flex items-center justify-center p-6"><div className="card max-w-md"><h1 className="text-xl font-medium">Unable to connect</h1><p className="my-4" role="alert">{error}</p><button className="btn-primary" onClick={() => setRetry(value => value + 1)}>Try again</button></div></div>;
-  return <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, register, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, connectionError: error, retrySession: () => setRetry(value => value + 1), login, register, logout }}>{children}</AuthContext.Provider>;
 }
 export function useAuth() {
   const context = useContext(AuthContext);

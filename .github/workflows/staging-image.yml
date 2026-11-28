@@ -1,0 +1,43 @@
+name: staging-image
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Dockerfile.staging
+      - backend/api/**
+      - backend/ml-service/**
+      - frontend/**
+      - .github/workflows/staging-image.yml
+  pull_request:
+    paths:
+      - Dockerfile.staging
+      - backend/api/**
+      - backend/ml-service/**
+      - frontend/**
+      - .github/workflows/staging-image.yml
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/api/package-lock.json
+      - name: Isolated API security, schema and routing checks
+        working-directory: backend/api
+        run: |
+          npm ci
+          npm test -- --runInBand
+          npm run test:e2e -- --runInBand
+      - name: Build free-staging image
+        run: docker build -f Dockerfile.staging -t fedhealth-staging .
+      - name: Check packaged runtimes and frontend files without production data
+        run: |
+          docker run --rm fedhealth-staging node -e "require('/app/backend/api/node_modules/@nestjs/core'); console.log('Node dependencies OK')"
+          docker run --rm --entrypoint python fedhealth-staging -c "import sklearn, fastapi, uvicorn; print('Python dependencies OK')"
+          docker run --rm --entrypoint sh fedhealth-staging -c 'test -f /app/frontend/dist/index.html && test -f /app/backend/api/dist/database/start-staging.js'

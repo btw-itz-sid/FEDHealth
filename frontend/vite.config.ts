@@ -16,10 +16,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true,
     host: '127.0.0.1',
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env.FEDHEALTH_API_PROXY_TARGET || 'http://127.0.0.1:3001',
         changeOrigin: true,
       },
     },

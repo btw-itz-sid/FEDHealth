@@ -1,3 +1,6 @@
+import { join } from 'path';
+import { modelDirectory, readModelArtifacts, writeAtomically } from '../../config/persistent-files';
+import { OnModuleInit } from '@nestjs/common';
 import { enumFilter, pagination } from '../../config/query-validation';
 import { mlRequestOptions } from '../../config/security';
 import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
@@ -22,7 +25,7 @@ export interface RegisterModelInput {
 }
 
 @Injectable()
-export class ModelsService {
+export class ModelsService implements OnModuleInit {
   private readonly mlServiceUrl: string;
 
   constructor(
@@ -36,6 +39,18 @@ export class ModelsService {
       'ML_SERVICE_URL',
       'http://localhost:8000',
     );
+  }
+
+  async onModuleInit() {
+    if (this.configService.get('ARTIFACT_STORAGE') !== 'database') return;
+    const models = await this.modelRepository.createQueryBuilder('model')
+      .addSelect(['model.artifactBytes', 'model.artifactMetadata'])
+      .where('model.artifactBytes IS NOT NULL').getMany();
+    for (const model of models) {
+      const directory = modelDirectory(model.modelId);
+      await writeAtomically(join(directory, 'pipeline.joblib'), model.artifactBytes!);
+      await writeAtomically(join(directory, 'metadata.json'), JSON.stringify(model.artifactMetadata));
+    }
   }
 
   async findAll(options: { page?: number; limit?: number; status?: ModelStatus }) {
@@ -68,9 +83,17 @@ export class ModelsService {
     });
     if (existing) return existing;
 
+    let artifacts: { artifactBytes?: Buffer; artifactMetadata?: Record<string, any> } = {};
+    if (this.configService.get('ARTIFACT_STORAGE') === 'database') {
+      const { bytes, metadata } = await readModelArtifacts(input.modelId);
+      const [usage] = await this.modelRepository.query('SELECT COALESCE(SUM(octet_length("artifactBytes")), 0)::bigint AS bytes FROM ml_models');
+      if (Number(usage.bytes) + bytes.length > 100 * 1024 * 1024) throw new BadRequestException('The staging model storage quota is full. Export models and ask the operator to free storage.');
+      artifacts = { artifactBytes: bytes, artifactMetadata: metadata };
+    }
     const model = await this.modelRepository.save(
       this.modelRepository.create({
         ...input,
+        ...artifacts,
         featureColumns: input.featureColumns || [],
         status: ModelStatus.READY,
         isActive: false,
@@ -95,7 +118,8 @@ export class ModelsService {
       metadata: { modelId: model.modelId, trainingMethod: model.trainingMethod },
     });
 
-    return model;
+    const { artifactBytes, artifactMetadata, ...publicModel } = model;
+    return publicModel;
   }
 
   async activate(id: string, userId: string) {

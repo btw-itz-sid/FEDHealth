@@ -1,3 +1,4 @@
+import { recoveryKey } from './account.service';
 import { createHash } from 'crypto';
 import {
   Injectable,
@@ -40,10 +41,12 @@ export class AuthService {
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
+    const key = recoveryKey();
     // Create user
     const user = this.userRepository.create({
       email: dto.email.trim().toLowerCase(),
       passwordHash,
+      recoveryCodeHash: key.hash,
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
       role: UserRole.PATIENT,
@@ -66,6 +69,7 @@ export class AuthService {
     return {
       user: this.sanitizeUser(savedUser),
       accessToken: token,
+      recoveryCode: key.code,
     };
   }
 

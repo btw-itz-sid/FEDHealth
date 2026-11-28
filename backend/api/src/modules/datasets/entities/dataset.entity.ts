@@ -31,6 +31,9 @@ export class Dataset {
   @Column()
   filepath: string;
 
+  @Column({ type: 'bytea', nullable: true, select: false })
+  csvBytes: Buffer | null;
+
   @Column('int')
   fileSize: number;
 

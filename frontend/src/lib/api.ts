@@ -59,7 +59,7 @@ class ApiClient {
 
   // ---- Auth ----
   async register(data: { email: string; password: string; firstName: string; lastName: string; role?: string }) {
-    return this.request<{ user: any }>('/auth/register', {
+    return this.request<{ user: any; recoveryCode: string }>('/auth/register', {
       method: 'POST',
       body: data,
     });
@@ -85,6 +85,19 @@ class ApiClient {
       method: 'PATCH',
       body: { currentPassword, newPassword },
     });
+  }
+
+  async recoverAccount(data: { email: string; recoveryCode: string; newPassword: string }) {
+    return this.request<{ recoveryCode: string }>('/auth/recover', { method: 'POST', body: data });
+  }
+  async rotateRecoveryKey(password: string) {
+    return this.request<{ recoveryCode: string }>('/auth/users/me/recovery-key', { method: 'POST', body: { password } });
+  }
+  async clearAssessmentHistory(password: string) {
+    return this.request('/auth/users/me/history', { method: 'DELETE', body: { password } });
+  }
+  async deletePersonalAccount(password: string) {
+    return this.request('/auth/users/me', { method: 'DELETE', body: { password } });
   }
 
   // ---- Predictions ----

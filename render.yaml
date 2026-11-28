@@ -1,0 +1,25 @@
+# Free research staging, not an always-on clinical/production service.
+services:
+  - type: web
+    name: fedhealth-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.staging
+    dockerContext: .
+    healthCheckPath: /api/v1/health/ready
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ML_SERVICE_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_EXPIRATION
+        value: 1h
