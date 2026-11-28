@@ -44,6 +44,8 @@ Only public/example or synthetic measurements should be used. Do not collect ide
 
 Latest local rehearsal: see [DEMO_VERIFICATION.md](DEMO_VERIFICATION.md) for the 28 November four-hospital run, active FedAvg model, 140 fresh automated checks, startup fixes and offline file backup. Public hosting remains unverified.
 
-On 22 November 2026, both production builds passed, along with 46 API unit/schema/persistence checks and 7 isolated HTTP checks. Recovery and privacy pages were also inspected with the API unavailable, and mobile login was checked for horizontal overflow. These local checks do not establish that the Docker image starts on Render. The current development machine has no Docker runtime. The `staging-image` GitHub Actions workflow builds the Linux image and checks packaged frontend files and Node/Python dependencies; its result must be checked after pushing. A fresh-Neon deployment and the public acceptance checks above remain necessary.
+On 28 November 2026, both production builds and 140 local automated checks passed. The four-hospital rehearsal covered model activation, synthetic assessments, saved history and a later local restart. See `DEMO_VERIFICATION.md` for exact scope and model IDs.
+
+The current development machine has no Docker runtime. The free-staging image was built successfully on Linux in [GitHub Actions](https://github.com/btw-itz-sid/FEDHealth/actions/runs/46157046776), with isolated API tests, packaged Node/Python imports and frontend/launcher file checks. The validated application source is `6c47d1ca8222e3f3d350b8806b7f4fd7daaee4a2`. This does not establish a full application startup against a fresh Neon database on Render. A real deployment and the public acceptance checks above remain necessary. No public deployment has been created yet.
 
 For a paid single-server deployment with persistent volumes, use `DEPLOYMENT.md` instead. Do not combine the two profiles' environment and storage assumptions.

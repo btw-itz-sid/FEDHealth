@@ -8,6 +8,7 @@ Scope: final guide demonstration on Monday, 30 November. These checks establish 
 - 7 isolated HTTP checks passed: cookie login, role rejection, foreign-origin/request verification, password-session invalidation, recovery replay rejection and frontend/API routing.
 - 87 ML tests passed, including numerical FedAvg, dataset validation, split isolation, training and prediction. One existing Starlette/httpx deprecation warning remains.
 - Total: **140 automated checks passed**. Both frontend and API production builds passed.
+- The free-staging Linux Docker image built successfully in [GitHub Actions](https://github.com/btw-itz-sid/FEDHealth/actions/runs/46157046776). Isolated API checks, packaged Node/Python imports and frontend/launcher file checks passed there. Tested application source: `6c47d1ca8222e3f3d350b8806b7f4fd7daaee4a2`; this is not a Render deployment.
 
 ## Actual application rehearsal
 
@@ -23,6 +24,7 @@ The following was exercised through the local application's browser-facing `/api
 - Final test accuracy: 73.3766%; recall: 70.3704%; ROC-AUC: 0.813519. This is one reproducible demonstration run, not independent evidence of clinical validity or generalization.
 - Submitted the two built-in synthetic examples. Returned probabilities were 0.045023 and 0.942440. Both predictions used this exact FedAvg model ID, version and method.
 - Signed out and signed in again; retrieved each assessment and verified its stored model and probability matched.
+- After a later local service restart, the active FedAvg model and both earlier saved assessments were retrieved unchanged. A fresh synthetic assessment returned the same probability (0.045023) from the same model, confirming local pipeline availability and history persistence.
 - Full local evidence is saved at `artifacts/final-rehearsal-2026-11-28.json` (gitignored; no live-user credentials included).
 
 ## Startup fixes verified
@@ -63,4 +65,4 @@ Existing backup paths are never overwritten. Keep a copy of the ZIP outside this
 - Predictions are research estimates with no established clinical validity.
 - Queued jobs survive API restarts; interrupted running jobs fail explicitly. Only queued creator-owned jobs can be cancelled; changing status does not terminate running Python computation.
 - The local profile uses filesystem artifacts. The free staging profile uses database-backed files and has isolated restoration tests, but real Render restart behavior remains a deployment acceptance check.
-- Render account/sign-in is still unavailable. Public URL, HTTPS deployment, actual Linux Docker execution, hosted resource limits and a complete database restore remain unverified. Follow `FREE_STAGING.md` after account setup.
+- Render account/sign-in is still unavailable. Public URL, HTTPS deployment, a full fresh-Neon hosted startup, hosted resource limits and a complete database restore remain unverified. The Linux image build and packaged runtime checks have passed in CI. Follow `FREE_STAGING.md` after account setup.
